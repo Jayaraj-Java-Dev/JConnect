@@ -1,3 +1,2 @@
 npm install firebase-admin node-pty
-node jserv.js
-node jcli.js
+node jconnect.js

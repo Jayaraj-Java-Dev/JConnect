@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Feature Manager</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Google Fonts for modern look -->
+  <link href="https://fonts.googleapis.com/css?family=Inter:400,500,600,700&display=swap" rel="stylesheet">
+  <!-- Feather Icons CDN for icons -->
+  <script src="https://unpkg.com/feather-icons"></script>
+  <style>
+    :root {
+      --primary: #1976d2;
+      --background: #f5f7fa;
+      --surface: #fff;
+      --border: #e0e4ea;
+      --success: #43b581;
+      --danger: #e74c3c;
+      --gray: #6b7280;
+      --radius: 16px;
+      --shadow: 0 4px 24px #0001;
+      --transition: 0.25s cubic-bezier(.4,0,.2,1);
+    }
+    html, body { height: 100%; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--background);
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      color: #232323;
+    }
+    .container {
+      max-width: 900px;
+      margin: 48px auto;
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 36px 42px 36px 42px;
+      animation: fadeIn 1s;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(40px);}
+      to { opacity: 1; transform: translateY(0);}
+    }
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--primary);
+      letter-spacing: -1px;
+      text-shadow: 0 1px 0 #fff4;
+      animation: textIn 1s;
+    }
+    @keyframes textIn {
+      from { opacity: 0; letter-spacing: 4px;}
+      to { opacity: 1; letter-spacing: -1px;}
+    }
+    h2 {
+      margin-top: 42px;
+      font-size: 1.45rem;
+      font-weight: 600;
+      color: #243c5a;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      letter-spacing: 0.2px;
+    }
+    .icon {
+      color: var(--primary);
+      vertical-align: middle;
+      margin-bottom: 2px;
+    }
+    .status {
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      flex-wrap: wrap;
+      background: #f2f6fc;
+      border-radius: 10px;
+      padding: 16px 18px;
+      border: 1px solid var(--border);
+      box-shadow: 0 2px 12px #1976d206;
+      animation: fadeIn 0.7s;
+    }
+    .status b {
+      color: var(--primary);
+    }
+    .status button {
+      font-size: 1em;
+    }
+    .feature-block {
+      animation: fadeIn 1.2s;
+      margin-bottom: 36px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 24px;
+    }
+    .active-sessions {
+      margin-top: 6px;
+      margin-bottom: 18px;
+    }
+    table {
+      border-collapse: separate;
+      border-spacing: 0;
+      width: 100%;
+      margin-bottom: 8px;
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: 0 2px 8px #0001;
+      overflow: hidden;
+      animation: fadeTable 1s;
+    }
+    @keyframes fadeTable {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    th, td {
+      padding: 14px 10px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      transition: background .22s;
+    }
+    tr:hover td {
+      background: #f7faff;
+    }
+    th {
+      background: #f4f8fb;
+      font-weight: 600;
+      color: #2d4257;
+    }
+    td {
+      font-size: 1em;
+      color: #34405a;
+    }
+    .session-status {
+      font-weight: 500;
+      color: var(--success);
+      letter-spacing: 0.3px;
+      transition: color .25s;
+    }
+    .session-status:not(.running) {
+      color: var(--gray);
+      font-weight: 400;
+      opacity: 0.9;
+    }
+    .session-actions button {
+      margin-right: 6px;
+    }
+    button {
+      font-family: inherit;
+      border: none;
+      outline: none;
+      background: var(--primary);
+      color: #fff;
+      padding: 8px 20px;
+      font-size: 1.07em;
+      border-radius: 7px;
+      cursor: pointer;
+      box-shadow: 0 1px 6px #1976d221;
+      font-weight: 500;
+      margin: 0 6px 0 0;
+      transition: background var(--transition), transform var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+    button:not(:disabled):hover, .close-modal:hover {
+      background: #1257a3;
+      transform: translateY(-2px) scale(1.04);
+    }
+    button:disabled {
+      background: #d3deef;
+      color: #a1a9bb;
+      cursor: not-allowed;
+      opacity: 0.65;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 10;
+      left: 0; top: 0; width: 100vw; height: 100vh;
+      background: rgba(26, 44, 73, 0.44);
+      justify-content: center; align-items: center;
+      animation: modalFade .44s;
+    }
+    @keyframes modalFade {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .modal-content {
+      background: var(--surface);
+      padding: 36px 32px 28px 32px;
+      border-radius: 14px;
+      min-width: 340px;
+      max-width: 95vw;
+      box-shadow: 0 8px 32px #1976d233;
+      font-size: 1.09em;
+      position: relative;
+      animation: modalPop .34s;
+    }
+    @keyframes modalPop {
+      from { transform: scale(0.9); opacity: 0;}
+      to { transform: scale(1); opacity: 1;}
+    }
+    .modal-content label {
+      display: block;
+      margin-top: 18px;
+      margin-bottom: 4px;
+      font-weight: 500;
+      color: #274a77;
+      font-size: 1em;
+      letter-spacing: 0.1px;
+    }
+    .modal-content input {
+      width: 100%;
+      margin-top: 4px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      font-size: 1em;
+      background: #f5f8fa;
+      transition: border-color var(--transition);
+      outline: none;
+      margin-bottom: 3px;
+    }
+    .modal-content input:focus {
+      border-color: var(--primary);
+      background: #eaf4ff;
+    }
+    .modal-content .error {
+      color: var(--danger);
+      margin-top: 10px;
+      font-size: 0.98em;
+      font-weight: 500;
+      min-height: 18px;
+      transition: opacity .22s;
+    }
+    .close-modal {
+      position: absolute;
+      top: 18px;
+      right: 22px;
+      cursor: pointer;
+      color: #888;
+      font-size: 22px;
+      transition: color .19s;
+    }
+    .close-modal:hover { color: var(--danger);}
+    .history {
+      font-size: 0.98em;
+      color: #4a5c7a;
+      background: #f6f9fb;
+      border-radius: 8px;
+      padding: 14px 20px 10px 20px;
+      margin-top: 16px;
+      box-shadow: 0 1px 6px #1976d210;
+      animation: fadeIn 1.3s;
+    }
+    .history ul { margin: 0; padding-left: 18px;}
+    .history li {
+      margin-bottom: 6px;
+      line-height: 1.6;
+      font-size: 0.97em;
+      animation: fadeIn 1.7s;
+    }
+    /* Animations for buttons */
+    button::after {
+      content:"";
+      display:block;
+      position:absolute;
+      left:50%; top:50%;
+      width:0; height:0;
+      background:rgba(255,255,255,.23);
+      border-radius:100%;
+      transform:translate(-50%,-50%);
+      transition:width .33s,height .33s,opacity .33s;
+      opacity:0;
+      z-index:0;
+    }
+    button:active::after {
+      width:140px; height:140px;
+      opacity:1;
+      transition:0s;
+    }
+    /* Responsive */
+    @media (max-width: 700px) {
+      .container { padding: 16px; }
+      .modal-content { min-width: 98vw; padding: 22px 10px; }
+      h1 { font-size: 2rem;}
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1><i data-feather="settings" class="icon"></i> Server Feature Management</h1>
+    <div id="main"></div>
+  </div>
+  <!-- SSH Modal -->
+  <div class="modal" id="ssh-modal">
+    <div class="modal-content">
+      <span class="close-modal" onclick="closeModal('ssh-modal')"><i data-feather="x"></i></span>
+      <h3 style="font-weight:600; color:var(--primary); margin-bottom:2px;"><i data-feather="terminal" class="icon"></i> Start SSH Session</h3>
+      <form onsubmit="return submitStart('ssh', event)">
+        <label>Session ID <span style="color:var(--danger)">*</span></label>
+        <input type="text" id="ssh-session" autocomplete="off" required placeholder="Enter session id...">
+        <div id="ssh-error" class="error"></div>
+        <button type="submit"><i data-feather="play" style="height:16px;vertical-align:-2px;"></i> Start</button>
+      </form>
+    </div>
+  </div>
+  <!-- HTTP Modal -->
+  <div class="modal" id="http-modal">
+    <div class="modal-content">
+      <span class="close-modal" onclick="closeModal('http-modal')"><i data-feather="x"></i></span>
+      <h3 style="font-weight:600; color:var(--primary); margin-bottom:2px;"><i data-feather="globe" class="icon"></i> Start HTTP Session</h3>
+      <form onsubmit="return submitStart('http', event)">
+        <label>Session ID <span style="color:var(--danger)">*</span></label>
+        <input type="text" id="http-session" autocomplete="off" required placeholder="Enter session id...">
+        <label>Forward Port (optional)</label>
+        <input type="number" id="http-port" min="1" max="65535" placeholder="e.g. 8000">
+        <div id="http-error" class="error"></div>
+        <button type="submit"><i data-feather="play" style="height:16px;vertical-align:-2px;"></i> Start</button>
+      </form>
+    </div>
+  </div>
+  <script>
+    let featureStatus = {};
+    async function fetchStatus() {
+      const resp = await fetch('/api/status');
+      const data = await resp.json();
+      featureStatus = data;
+      document.getElementById('main').innerHTML =
+        renderFeature("ssh", data.ssh) +
+        renderFeature("http", data.http);
+      feather.replace(); // Update icons
+    }
+    function renderFeature(feature, f) {
+      // Icons
+      const icons = {
+        ssh: '<i data-feather="terminal" class="icon"></i>',
+        http: '<i data-feather="globe" class="icon"></i>'
+      };
+      // Sessions Table
+      let sessionsTable = '';
+      if (f.sessions && f.sessions.length > 0) {
+        sessionsTable += '<table><tr>' +
+          (feature === "http" ? '<th>Session ID</th><th>Port</th>' : '<th>Session ID</th>') +
+          '<th>Status</th><th>PID</th><th>Started At</th><th>Action</th></tr>';
+        f.sessions.forEach(s => {
+          sessionsTable += '<tr>' +
+            '<td>' + s.sessionId + '</td>' +
+            (feature === "http" ? '<td>' + (s.port || '-') + '</td>' : '') +
+            '<td class="session-status ' + (s.status === "running" ? "running" : "") + '">' +
+            (s.status === "running" ? '<i data-feather="check-circle" style="color:var(--success);height:16px;vertical-align:-3px;"></i> Running'
+              : '<i data-feather="pause-circle" style="color:var(--gray);height:16px;vertical-align:-3px;"></i> ' + s.status.charAt(0).toUpperCase() + s.status.slice(1)) +
+            '</td>' +
+            '<td>' + (s.pid || '-') + '</td>' +
+            '<td>' + (s.startedAt ? new Date(s.startedAt).toLocaleString() : '-') + '</td>' +
+            '<td class="session-actions">' +
+            '<button onclick="stopSession(\'' + feature + '\', \'' + s.sessionId + '\'' + (feature === "http" && s.port ? ', ' + s.port : '') +
+              ')" ' + (s.status === "running" ? "" : "disabled") + ' style="background:var(--danger);"><i data-feather="stop-circle" style="height:16px;vertical-align:-3px;"></i> Stop</button>' +
+            '</td>' +
+            '</tr>';
+        });
+        sessionsTable += '</table>';
+      } else {
+        sessionsTable = '<div style="color:var(--gray);margin:10px 1px 18px 1px;font-size:1.07em;"><i data-feather="info"></i> No active sessions.</div>';
+      }
+      return `
+        <div class="feature-block">
+          <h2>${icons[feature]} ${feature.toUpperCase()}</h2>
+          <div class="status">
+            <span>
+              <b>Enabled:</b> 
+              <span style="display:inline-block;vertical-align:middle;">
+                ${f.enabled ? '<i data-feather="toggle-right" style="color:var(--success);height:18px;vertical-align:-3px;"></i> <span style="color:var(--success);font-weight:600;">Yes</span>' 
+                            : '<i data-feather="toggle-left" style="color:var(--danger);height:18px;vertical-align:-3px;"></i> <span style="color:var(--danger);font-weight:600;">No</span>'}
+              </span>
+            </span>
+            <button onclick="action('${feature}', 'enable')" ${f.enabled ? "disabled" : ""}><i data-feather="power" style="height:16px;vertical-align:-2px;"></i> Enable</button>
+            <button onclick="action('${feature}', 'disable')" ${!f.enabled ? "disabled" : ""} style="background:var(--danger);"><i data-feather="power" style="height:16px;vertical-align:-2px;"></i> Disable</button>
+            <button onclick="openStartModal('${feature}')" ${!f.enabled ? "disabled" : ""} style="background:var(--success);"><i data-feather="plus-circle" style="height:16px;vertical-align:-2px;"></i> Start New Session</button>
+          </div>
+          <div class="active-sessions">
+            <b style="color:#2d4257;">Active Sessions:</b>
+            ${sessionsTable}
+          </div>
+          <div class="history">
+            <b style="color:#1976d2;">Recent history:</b>
+            <ul>${f.history.map(h => `<li>${h.time} - ${h.action}
+              ${h.sessionId ? ` <span style="color:#2d4257;">(session: ${h.sessionId})</span>` : ''}
+              ${h.port ? ` <span style="color:#4c6fb3;">(port: ${h.port})</span>` : ''}
+              </li>`).join('')}</ul>
+          </div>
+        </div>
+      `;
+    }
+    async function action(feature, act) {
+      if (act === "start") return openStartModal(feature);
+      await fetch('/api/feature/' + feature, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({action: act})
+      });
+      fetchStatus();
+    }
+    function openStartModal(feature) {
+      if (feature === "ssh") {
+        document.getElementById("ssh-session").value = "";
+        document.getElementById("ssh-error").textContent = "";
+        document.getElementById("ssh-modal").style.display = "flex";
+      } else if (feature === "http") {
+        document.getElementById("http-session").value = "";
+        document.getElementById("http-port").value = "";
+        document.getElementById("http-error").textContent = "";
+        document.getElementById("http-modal").style.display = "flex";
+      }
+      feather.replace();
+    }
+    function closeModal(id) {
+      document.getElementById(id).style.display = "none";
+    }
+    async function submitStart(feature, event) {
+      if (event) event.preventDefault();
+      if (feature === "ssh") {
+        const sessionId = document.getElementById("ssh-session").value.trim();
+        if (!sessionId) {
+          document.getElementById("ssh-error").textContent = "Session ID is required.";
+          return false;
+        }
+        const resp = await fetch('/api/feature/ssh', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({action: "start", sessionId})
+        });
+        if (!resp.ok) {
+          const err = await resp.json();
+          document.getElementById("ssh-error").textContent = err.error || "Error starting SSH";
+          return false;
+        }
+        closeModal("ssh-modal");
+      } else if (feature === "http") {
+        const sessionId = document.getElementById("http-session").value.trim();
+        const portStr = document.getElementById("http-port").value.trim();
+        if (!sessionId) {
+          document.getElementById("http-error").textContent = "Session ID is required.";
+          return false;
+        }
+        let port = null;
+        if (portStr) {
+          port = parseInt(portStr, 10);
+          if (isNaN(port) || port < 1 || port > 65535) {
+            document.getElementById("http-error").textContent = "Invalid port value.";
+            return false;
+          }
+        }
+        const resp = await fetch('/api/feature/http', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({action: "start", sessionId, port})
+        });
+        if (!resp.ok) {
+          const err = await resp.json();
+          document.getElementById("http-error").textContent = err.error || "Error starting HTTP";
+          return false;
+        }
+        closeModal("http-modal");
+      }
+      fetchStatus();
+      return false;
+    }
+    async function stopSession(feature, sessionId, port) {
+      await fetch('/api/feature/' + feature, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({action: "stop", sessionId, port})
+      });
+      fetchStatus();
+    }
+    fetchStatus();
+    window.onclick = function(event) {
+      ['ssh-modal','http-modal'].forEach(id=>{
+        const m=document.getElementById(id);
+        if(event.target===m) m.style.display='none';
+      });
+    }
+    // Initial icon rendering
+    document.addEventListener("DOMContentLoaded", () => {
+      feather.replace();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,3 @@
+npm install firebase-admin node-pty
+node server.js
+node client.js

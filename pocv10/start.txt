@@ -1,2 +1,0 @@
-npm install firebase-admin node-pty
-node jconnect.js

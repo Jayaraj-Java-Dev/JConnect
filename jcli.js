@@ -7,8 +7,48 @@ const url = require("url");
 // Usage: node jcli.js ssh|http [SESSION_ID] [options]
 // Example: node jcli.js http demo-session -port=8000
 
+const initJsonPath = "./assets/init.json";
+const serviceAccountPath = "./assets/firebase_config.json";
+
 const feature = process.argv[2];
-const SESSION_ID = process.argv[3] || "demo-session";
+
+if (
+  !feature ||
+  !["ssh", "http"].includes(feature)
+) {
+  console.error(
+    "Usage: node jcli.js ssh|http [SESSION_ID] [options]\n" +
+    "For HTTP client, you can use -port=PORT to fix the target port."
+  );
+  process.exit(1);
+}
+
+// Helper function to check file existence and print a polite message
+function checkFileExists(filePath) {
+    if (!fs.existsSync(filePath)) {
+        console.log(`❌ Sorry, the file "${filePath}" does not exist. Please check the path or create the file.`);
+        process.exit(1);
+    }
+}
+
+// Check each file
+checkFileExists(initJsonPath);
+checkFileExists(serviceAccountPath);
+
+const initJson = fs.readFileSync(initJsonPath, "utf8");
+const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, "utf8"));
+
+const SESSION_ID = process.argv[3];
+const dbUrl = JSON.parse(initJson)["realtime_db_url"];
+
+
+if(!SESSION_ID) {
+  console.error(
+    "SESSION_ID is mandatory"
+  );
+  process.exit(1);
+}
+
 
 let fixedTargetPort = null;
 if (feature === "http") {
@@ -22,29 +62,10 @@ if (feature === "http") {
   }
 }
 
-if (
-  !feature ||
-  !["ssh", "http"].includes(feature)
-) {
-  console.error(
-    "Usage: node jcli.js ssh|http [SESSION_ID] [options]\n" +
-    "For HTTP client, you can use -port=PORT to fix the target port."
-  );
-  process.exit(1);
-}
-
 // Load firebase config
-const serviceAccountPath = path.resolve(__dirname, "firebase_config.json");
-if (!fs.existsSync(serviceAccountPath)) {
-  console.error("Missing firebase_config.json");
-  process.exit(1);
-}
-const serviceAccount = require(serviceAccountPath);
-
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  databaseURL:
-    "https://pets-fort-default-rtdb.asia-southeast1.firebasedatabase.app",
+  databaseURL: dbUrl,
 });
 
 const db = admin.database();

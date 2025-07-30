@@ -7,11 +7,12 @@ const url = require("url");
 const { spawn } = require("child_process");
 
 // Usage: node jserv.js ssh|http|manage [SESSION_ID] [options]
-// Example: node jserv.js http demo-session
+
+const initJsonPath = "./assets/init.json";
+const webPanelHtmlPath = "./assets/feature_manager.html";
+const serviceAccountPath = "./assets/firebase_config.json";
 
 const feature = process.argv[2];
-const SESSION_ID = process.argv[3] || "demo-session";
-const startWebAt1 = process.argv.includes("-p");
 
 if (
   !feature ||
@@ -24,19 +25,52 @@ if (
   process.exit(1);
 }
 
+// Helper function to check file existence and print a polite message
+function checkFileExists(filePath) {
+    if (!fs.existsSync(filePath)) {
+        console.log(`❌ Sorry, the file "${filePath}" does not exist. Please check the path or create the file.`);
+        process.exit(1);
+    }
+}
+
+// Check each file
+checkFileExists(initJsonPath);
+checkFileExists(webPanelHtmlPath);
+checkFileExists(serviceAccountPath);
+
+const initJson = fs.readFileSync(initJsonPath, "utf8");
+const webPanelHtml = fs.readFileSync(webPanelHtmlPath, "utf8");
+const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, "utf8"));
+
+const SESSION_ID = process.argv[3];
+const startWebAt1 = process.argv.includes("-p");
+const dbUrl = JSON.parse(initJson)["realtime_db_url"];
+
+
+if(!dbUrl) {
+  console.error(
+    "The "+initJsonPath+" must contain 'realtime_db_url' of the firebase realtime db to function properly"
+  );
+  process.exit(1);
+}
+
 // Load firebase config if not manage feature
 if (feature !== "manage") {
-  const serviceAccountPath = path.resolve(__dirname, "firebase_config.json");
+  if(!SESSION_ID) {
+    console.error(
+      "SESSION_ID is mandatory"
+    );  
+    process.exit(1);
+  }
+
   if (!fs.existsSync(serviceAccountPath)) {
     console.error("Missing firebase_config.json");
     process.exit(1);
   }
-  const serviceAccount = require(serviceAccountPath);
 
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
-    databaseURL:
-      "https://pets-fort-default-rtdb.asia-southeast1.firebasedatabase.app",
+    databaseURL: dbUrl,
   });
 }
 
@@ -152,7 +186,14 @@ async function runHTTPServer() {
 
 // ------------------- MANAGE FEATURE ------------------- //
 
-const MANAGE_PORT = 55777;
+let MANAGE_PORT = 55777;
+if (feature === "manage") {
+  // If a number is provided immediately after "manage", use it as port
+  if (process.argv.length > 3 && /^\d+$/.test(process.argv[3])) {
+    const portNum = parseInt(process.argv[3], 10);
+    if (portNum > 0 && portNum < 65536) MANAGE_PORT = portNum;
+  }
+}
 const thisFile = require.main.filename;
 
 function createFeatureManager() {
@@ -268,6 +309,8 @@ function createFeatureManager() {
   return { getStatus, setFeature };
 }
 
+
+
 function runManageServer() {
   const featureManager = createFeatureManager();
   
@@ -313,214 +356,7 @@ function runManageServer() {
         }
       });
     } else if (req.url === "/" && req.method === "GET") {
-      const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Feature Manager</title>
-  <style>
-    body { font-family: sans-serif; max-width: 900px; margin: 40px auto; background: #f9f9f9;}
-    h2 { margin-top: 30px; }
-    .status { margin-bottom: 20px; }
-    .history { font-size: 0.95em; color: #555;}
-    button { margin: 0 6px 0 0; }
-    table { border-collapse: collapse; width:100%; margin-bottom:12px;}
-    th, td { border:1px solid #ccc; padding:6px 10px;}
-    .modal {
-      display: none; position: fixed; z-index: 10; left: 0; top: 0; width: 100vw; height: 100vh;
-      background: rgba(0,0,0,0.4); justify-content: center; align-items: center;
-    }
-    .modal-content {
-      background: #fff; padding: 20px; border-radius: 6px; min-width: 320px;
-      box-shadow: 0 2px 16px #0002;
-    }
-    .modal-content label { display: block; margin-top: 10px; }
-    .modal-content input { width: 100%; margin-top: 4px; padding: 6px; }
-    .modal-content .error { color: #b00; margin-top: 10px; }
-    .close-modal { float: right; cursor: pointer; color: #888; font-size: 18px;}
-    button:disabled { opacity:0.5; }
-  </style>
-</head>
-<body>
-  <h1>Server Feature Management</h1>
-  <div id="main"></div>
-  <!-- SSH Modal -->
-  <div class="modal" id="ssh-modal">
-    <div class="modal-content">
-      <span class="close-modal" onclick="closeModal('ssh-modal')">&times;</span>
-      <h3>Start SSH Session</h3>
-      <form onsubmit="return submitStart('ssh', event)">
-        <label>Session ID <span style="color:red">*</span></label>
-        <input type="text" id="ssh-session" required>
-        <div id="ssh-error" class="error"></div>
-        <button type="submit">Start</button>
-      </form>
-    </div>
-  </div>
-  <!-- HTTP Modal -->
-  <div class="modal" id="http-modal">
-    <div class="modal-content">
-      <span class="close-modal" onclick="closeModal('http-modal')">&times;</span>
-      <h3>Start HTTP Session</h3>
-      <form onsubmit="return submitStart('http', event)">
-        <label>Session ID <span style="color:red">*</span></label>
-        <input type="text" id="http-session" required>
-        <label>Forward Port (optional)</label>
-        <input type="number" id="http-port" min="1" max="65535" placeholder="e.g. 8000">
-        <div id="http-error" class="error"></div>
-        <button type="submit">Start</button>
-      </form>
-    </div>
-  </div>
-  <script>
-    let featureStatus = {};
-    async function fetchStatus() {
-      const resp = await fetch('/api/status');
-      const data = await resp.json();
-      featureStatus = data;
-      document.getElementById('main').innerHTML = 
-        renderFeature("ssh", data.ssh) + 
-        renderFeature("http", data.http);
-    }
-    function renderFeature(feature, f) {
-      let sessionsTable = '';
-      if (f.sessions && f.sessions.length > 0) {
-        sessionsTable += '<table><tr>' + 
-          (feature === "http" ? '<th>Session ID</th><th>Port</th>' : '<th>Session ID</th>') +
-          '<th>Status</th><th>PID</th><th>Started At</th><th>Action</th></tr>';
-        f.sessions.forEach(s => {
-          sessionsTable += '<tr>' +
-            '<td>' + s.sessionId + '</td>' +
-            (feature === "http" ? '<td>' + (s.port || '-') + '</td>' : '') +
-            '<td>' + s.status + '</td>' +
-            '<td>' + (s.pid || '-') + '</td>' +
-            '<td>' + (s.startedAt ? new Date(s.startedAt).toLocaleString() : '-') + '</td>' +
-            '<td><button onclick="stopSession(\\'' + feature + '\\', \\''
-              + s.sessionId + '\\'' + (feature === "http" && s.port ? ', ' + s.port : '') +
-              ')" ' + (s.status === "running" ? "" : "disabled") + '>Stop</button></td>' +
-            '</tr>';
-        });
-        sessionsTable += '</table>';
-      } else {
-        sessionsTable = '<p>No active sessions.</p>';
-      }
-      return \`
-        <div>
-          <h2>\${feature.toUpperCase()}</h2>
-          <div class="status">
-            <b>Enabled:</b> \${f.enabled ? "Yes" : "No"}<br>
-            <button onclick="action('\${feature}', 'enable')" \${f.enabled ? "disabled" : ""}>Enable</button>
-            <button onclick="action('\${feature}', 'disable')" \${!f.enabled ? "disabled" : ""}>Disable</button>
-            <button onclick="openStartModal('\${feature}')" \${!f.enabled ? "disabled" : ""}>Start New Session</button>
-          </div>
-          <div>
-            <b>Active Sessions:</b>
-            \${sessionsTable}
-          </div>
-          <div class="history">
-            <b>Recent history:</b>
-            <ul>\${f.history.map(h => '<li>' + h.time + ' - ' + h.action + 
-              (h.sessionId ? ' (session: ' + h.sessionId + ')' : '') + 
-              (h.port ? ' (port: ' + h.port + ')' : '') +
-              '</li>').join('')}</ul>
-          </div>
-        </div>
-      \`;
-    }
-    async function action(feature, act) {
-      if (act === "start") return openStartModal(feature);
-      await fetch('/api/feature/' + feature, {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({action: act})
-      });
-      fetchStatus();
-    }
-    function openStartModal(feature) {
-      if (feature === "ssh") {
-        document.getElementById("ssh-session").value = "";
-        document.getElementById("ssh-error").textContent = "";
-        document.getElementById("ssh-modal").style.display = "flex";
-      } else if (feature === "http") {
-        document.getElementById("http-session").value = "";
-        document.getElementById("http-port").value = "";
-        document.getElementById("http-error").textContent = "";
-        document.getElementById("http-modal").style.display = "flex";
-      }
-    }
-    function closeModal(id) {
-      document.getElementById(id).style.display = "none";
-    }
-    async function submitStart(feature, event) {
-      if (event) event.preventDefault();
-      if (feature === "ssh") {
-        const sessionId = document.getElementById("ssh-session").value.trim();
-        if (!sessionId) {
-          document.getElementById("ssh-error").textContent = "Session ID is required.";
-          return false;
-        }
-        const resp = await fetch('/api/feature/ssh', {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({action: "start", sessionId})
-        });
-        if (!resp.ok) {
-          const err = await resp.json();
-          document.getElementById("ssh-error").textContent = err.error || "Error starting SSH";
-          return false;
-        }
-        closeModal("ssh-modal");
-      } else if (feature === "http") {
-        const sessionId = document.getElementById("http-session").value.trim();
-        const portStr = document.getElementById("http-port").value.trim();
-        if (!sessionId) {
-          document.getElementById("http-error").textContent = "Session ID is required.";
-          return false;
-        }
-        let port = null;
-        if (portStr) {
-          port = parseInt(portStr, 10);
-          if (isNaN(port) || port < 1 || port > 65535) {
-            document.getElementById("http-error").textContent = "Invalid port value.";
-            return false;
-          }
-        }
-        const resp = await fetch('/api/feature/http', {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({action: "start", sessionId, port})
-        });
-        if (!resp.ok) {
-          const err = await resp.json();
-          document.getElementById("http-error").textContent = err.error || "Error starting HTTP";
-          return false;
-        }
-        closeModal("http-modal");
-      }
-      fetchStatus();
-      return false;
-    }
-    async function stopSession(feature, sessionId, port) {
-      await fetch('/api/feature/' + feature, {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({action: "stop", sessionId, port})
-      });
-      fetchStatus();
-    }
-    fetchStatus();
-    setInterval(fetchStatus, 5000);
-    window.onclick = function(event) {
-      ['ssh-modal','http-modal'].forEach(id=>{
-        const m=document.getElementById(id);
-        if(event.target===m) m.style.display='none';
-      });
-    }
-  </script>
-</body>
-</html>
-      `;
-      res.writeHead(200, { "Content-Type": "text/html" }); res.end(html);
+      res.writeHead(200, { "Content-Type": "text/html" }); res.end(webPanelHtml);
     } else {
       res.writeHead(404, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: "Not found" }));

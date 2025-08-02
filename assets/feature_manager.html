@@ -4,259 +4,784 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JServ Manager</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-            line-height: 1.6;
-            margin: 0;
-            padding: 20px;
-            color: #333;
-            margin: 0 auto;
+        :root {
+            --primary: #4361ee;
+            --primary-dark: #3a56d4;
+            --secondary: #4cc9f0;
+            --success: #2ecc71;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --dark: #2d3748;
+            --gray: #718096;
+            --light: #f8f9fa;
+            --white: #ffffff;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            --border-radius: 8px;
+            --transition: all 0.3s ease;
         }
-        h1, h2, h3 {
-            color: #2c3e50;
-        }
-        .container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-        }
-        .section {
-            flex: 1;
-            min-width: 300px;
-            background-color: #f8f9fa;
-            border-radius: 8px;
-            padding: 15px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-        th, td {
-            text-align: left;
-            padding: 10px;
-            border-bottom: 1px solid #ddd;
-        }
-        th {
-            background-color: #f1f1f1;
-        }
-        button {
-            background-color: #4CAF50;
-            border: none;
-            color: white;
-            padding: 8px 12px;
-            text-align: center;
-            text-decoration: none;
-            display: inline-block;
-            font-size: 14px;
-            margin: 2px;
-            cursor: pointer;
-            border-radius: 4px;
-        }
-        button.stop {
-            background-color: #f44336;
-        }
-        button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-        input, select {
-            width: 100%;
-            padding: 8px;
+
+        * {
             box-sizing: border-box;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            margin: 0;
+            padding: 0;
         }
-        .status-indicator {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            margin-right: 5px;
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            color: var(--dark);
+            background-color: #f5f7fa;
+            overflow-x: hidden;
+            padding: 0;
+            margin: 0;
         }
-        .status-online {
-            background-color: #4CAF50;
+
+        /* Header Styles */
+        .header {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: var(--white);
+            padding: 1.5rem 2rem;
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+            z-index: 10;
         }
-        .status-offline {
-            background-color: #f44336;
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 100%;
+            height: 200%;
+            background: rgba(255, 255, 255, 0.1);
+            transform: rotate(30deg);
+            z-index: -1;
         }
-        .refresh-bar {
-            background-color: #eee;
-            padding: 10px;
-            margin-bottom: 20px;
-            border-radius: 4px;
+        
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .page-title {
+            font-weight: 800;
+            margin: 0;
+            font-size: 2rem;
+            letter-spacing: -0.5px;
+            animation: fadeInDown 0.8s ease-out;
+        }
+
+        .info-bar {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.8);
+            margin-top: 0.3rem;
+            animation: fadeInUp 0.8s ease-out;
+            display: flex;
+            align-items: center;
+        }
+
+        .info-bar i {
+            margin-right: 0.5rem;
+        }
+
+        /* Main Content Area */
+        .main-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+
+        /* Card Styles */
+        .card {
+            background-color: var(--white);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            transition: var(--transition);
+            animation: fadeIn 0.5s ease-out;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .card:hover {
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-2px);
+        }
+
+        .card-header {
+            padding: 1.2rem 1.5rem;
+            background-color: var(--white);
+            border-bottom: 1px solid rgba(0,0,0,0.05);
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-        .manager-section {
-            margin-bottom: 20px;
+
+        .card-header h2 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--dark);
+            margin: 0;
+            display: flex;
+            align-items: center;
         }
-        .server-badge {
-            display: inline-block;
-            padding: 3px 8px;
-            background-color: #e0e0e0;
-            border-radius: 12px;
-            font-size: 12px;
-            margin-left: 5px;
+
+        .card-header h2 i {
+            margin-right: 0.75rem;
+            color: var(--primary);
+            font-size: 1.4rem;
         }
-        .loading {
-            text-align: center;
-            padding: 20px;
-            font-style: italic;
-            color: #666;
+
+        .card-header .card-actions {
+            display: flex;
+            gap: 0.5rem;
         }
-        .toast {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background-color: #333;
-            color: white;
-            padding: 15px 20px;
-            border-radius: 4px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            opacity: 0;
-            transition: opacity 0.3s;
-            z-index: 1000;
+
+        .card-body {
+            padding: 1.5rem;
         }
-        .toast.show {
+
+        .card-section {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .card-section:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .card-section h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--dark);
+            display: flex;
+            align-items: center;
+        }
+
+        .card-section h3 i {
+            margin-right: 0.5rem;
+            color: var(--primary);
+        }
+
+        /* Grid Layout */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Form Styles */
+        .form-group {
+            margin-bottom: 1.2rem;
+        }
+
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            font-size: 0.9rem;
+            color: var(--dark);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            color: var(--dark);
+            background-color: var(--white);
+            background-clip: padding-box;
+            border: 1px solid #e2e8f0;
+            border-radius: var(--border-radius);
+            transition: var(--transition);
+        }
+
+        .form-control:focus {
+            border-color: var(--primary);
+            outline: 0;
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.25);
+        }
+
+        .form-control::placeholder {
+            color: #a0aec0;
             opacity: 1;
         }
-        .toast.success {
-            background-color: #4CAF50;
+
+        select.form-control {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a0aec0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            background-size: 1em;
         }
-        .toast.error {
-            background-color: #f44336;
+
+        /* Button Styles */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.75rem 1.5rem;
+            font-weight: 500;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            text-align: center;
+            white-space: nowrap;
+            vertical-align: middle;
+            cursor: pointer;
+            user-select: none;
+            border: 1px solid transparent;
+            border-radius: var(--border-radius);
+            transition: all 0.15s ease-in-out;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
         }
-        .info-bar {
-            font-size: 12px;
-            color: #666;
-            text-align: right;
-            margin-top: -10px;
-            margin-bottom: 20px;
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
+
+        .btn:active {
+            transform: translateY(0);
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .btn i {
+            margin-right: 0.5rem;
+        }
+
+        .btn-primary {
+            color: var(--white);
+            background-color: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+            border-color: var(--primary-dark);
+        }
+
+        .btn-danger {
+            color: var(--white);
+            background-color: var(--danger);
+            border-color: var(--danger);
+        }
+
+        .btn-danger:hover {
+            background-color: #c0392b;
+            border-color: #c0392b;
+        }
+
+        .btn-sm {
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+        }
+
+        .btn-icon {
+            padding: 0.5rem;
+            font-size: 0.85rem;
+            border-radius: 50%;
+            height: 2.5rem;
+            width: 2.5rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        /* Table Styles */
+        .table-container {
+            position: relative;
+            overflow-x: auto;
+            border-radius: var(--border-radius);
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            background-color: var(--white);
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+            margin-bottom: 0;
+        }
+
+        .table th {
+            background-color: #f9fafb;
+            font-weight: 600;
+            text-align: left;
+            padding: 1rem;
+            border-bottom: 1px solid #e2e8f0;
+            color: var(--dark);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .table td {
+            padding: 1rem;
+            border-bottom: 1px solid #e2e8f0;
+            color: var(--gray);
+            transition: var(--transition);
+        }
+
+        .table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .table tr {
+            transition: var(--transition);
+        }
+
+        .table tr:hover td {
+            background-color: #f9fafb;
+        }
+
+        .table-actions {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+        }
+
         .server-id {
-            font-family: monospace;
-            font-size: 12px;
-            color: #666;
-            margin-top: 3px;
+            font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 0.75rem;
+            color: var(--gray);
+            display: block;
+            margin-top: 0.25rem;
+            opacity: 0.8;
         }
+
+        /* Status indicators */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.35rem 0.75rem;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            line-height: 1;
+        }
+
+        .status-online {
+            background-color: rgba(46, 204, 113, 0.15);
+            color: #27ae60;
+        }
+
+        .status-offline {
+            background-color: rgba(231, 76, 60, 0.15);
+            color: #c0392b;
+        }
+
+        .status-badge i {
+            margin-right: 0.35rem;
+            font-size: 0.7rem;
+        }
+
+        /* Refresh bar */
+        .refresh-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background-color: var(--white);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(0,0,0,0.05);
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .refresh-time {
+            display: flex;
+            align-items: center;
+            font-size: 0.9rem;
+            color: var(--gray);
+        }
+
+        .refresh-time i {
+            margin-right: 0.5rem;
+            color: var(--primary);
+        }
+
+        /* Loading states */
+        .loading-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2.5rem;
+            color: var(--gray);
+            text-align: center;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 3px solid var(--primary);
+            width: 2rem;
+            height: 2rem;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1rem;
+        }
+
+        .loading-text {
+            font-size: 0.9rem;
+            color: var(--gray);
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem 1.5rem;
+            color: var(--gray);
+            text-align: center;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .empty-state i {
+            font-size: 2.5rem;
+            color: #e2e8f0;
+            margin-bottom: 1rem;
+        }
+
+        .empty-state-text {
+            font-size: 0.95rem;
+            color: var(--gray);
+            max-width: 300px;
+            margin: 0 auto;
+        }
+
+        /* Toast notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .toast {
+            display: flex;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            border-radius: var(--border-radius);
+            background-color: var(--white);
+            box-shadow: var(--shadow-lg);
+            color: var(--dark);
+            width: 350px;
+            max-width: calc(100vw - 4rem);
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            transform: translateX(400px);
+            opacity: 0;
+            border-left: 4px solid var(--primary);
+        }
+
+        .toast.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        .toast.success {
+            border-left-color: var(--success);
+        }
+
+        .toast.error {
+            border-left-color: var(--danger);
+        }
+
+        .toast-icon {
+            margin-right: 1rem;
+            font-size: 1.25rem;
+        }
+
+        .toast.success .toast-icon {
+            color: var(--success);
+        }
+
+        .toast.error .toast-icon {
+            color: var(--danger);
+        }
+
+        .toast-content {
+            flex-grow: 1;
+        }
+
+        .toast-title {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            font-size: 0.95rem;
+        }
+
+        .toast-message {
+            font-size: 0.85rem;
+            color: var(--gray);
+        }
+
+        .toast-close {
+            color: var(--gray);
+            background: none;
+            border: none;
+            font-size: 1rem;
+            cursor: pointer;
+            padding: 0.25rem;
+            margin-left: 1rem;
+            opacity: 0.6;
+            transition: var(--transition);
+        }
+
+        .toast-close:hover {
+            opacity: 1;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        @keyframes slide-in-right {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Animation classes */
+        .animate-fadeIn { animation: fadeIn 0.5s ease-out; }
+        .animate-fadeInUp { animation: fadeInUp 0.5s ease-out; }
+        .animate-fadeInDown { animation: fadeInDown 0.5s ease-out; }
+        .animate-pulse { animation: pulse 2s infinite; }
     </style>
 </head>
 <body>
-    <h1>JServ Feature Manager</h1>
-    <div class="info-bar">Last updated: 2025-08-02 18:12:09 by jayaraj-c-22540</div>
-    
-    <div class="refresh-bar">
-        <span id="last-updated">Never updated</span>
-        <div>
-            <button onclick="refreshStatus()">Refresh</button>
-        </div>
-    </div>
-    
-    <div id="toast" class="toast"></div>
-    
-    <div class="container">
-        <div class="section">
-            <h2>SSH Servers</h2>
-            <div class="manager-section">
-                <h3>Start New SSH Session</h3>
-                <div class="form-group">
-                    <label for="ssh-session-id">Session ID:</label>
-                    <input type="text" id="ssh-session-id" placeholder="Enter a unique session ID">
-                </div>
-                <div class="form-group">
-                    <label for="ssh-server-select">Server:</label>
-                    <select id="ssh-server-select">
-                        <option value="">Loading servers...</option>
-                    </select>
-                </div>
-                <button id="start-ssh-btn" onclick="startFeature('ssh')" disabled>Start SSH Session</button>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <h1 class="page-title">JServ Feature Manager</h1>
+            <div class="info-bar">
+                <i class="fas fa-clock"></i> Last updated: 2025-08-02 18:12:09 by jayaraj-c-22540
             </div>
-            
-            <h3>Active SSH Sessions</h3>
-            <div id="ssh-sessions-loading" class="loading">Loading sessions...</div>
-            <table id="ssh-table" style="display: none;">
-                <thead>
-                    <tr>
-                        <th>Session ID</th>
-                        <th>Server</th>
-                        <th>Started</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
         </div>
-        
-        <div class="section">
-            <h2>HTTP Servers</h2>
-            <div class="manager-section">
-                <h3>Start New HTTP Session</h3>
-                <div class="form-group">
-                    <label for="http-session-id">Session ID:</label>
-                    <input type="text" id="http-session-id" placeholder="Enter a unique session ID">
-                </div>
-                <div class="form-group">
-                    <label for="http-port">Port:</label>
-                    <input type="number" id="http-port" placeholder="Enter port number (e.g., 8080)">
-                </div>
-                <div class="form-group">
-                    <label for="http-server-select">Server:</label>
-                    <select id="http-server-select">
-                        <option value="">Loading servers...</option>
-                    </select>
-                </div>
-                <button id="start-http-btn" onclick="startFeature('http')" disabled>Start HTTP Session</button>
+    </header>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Refresh Bar -->
+        <div class="refresh-bar">
+            <div class="refresh-time">
+                <i class="fas fa-sync-alt"></i>
+                <span id="last-updated">Never updated</span>
             </div>
-            
-            <h3>Active HTTP Sessions</h3>
-            <div id="http-sessions-loading" class="loading">Loading sessions...</div>
-            <table id="http-table" style="display: none;">
-                <thead>
-                    <tr>
-                        <th>Session ID</th>
-                        <th>Port</th>
-                        <th>Server</th>
-                        <th>Started</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
+            <button class="btn btn-primary btn-sm" onclick="refreshStatus()">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
+
+        <!-- Grid Layout -->
+        <div class="grid">
+            <!-- SSH Servers Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-terminal"></i> SSH Servers</h2>
+                </div>
+                <div class="card-body">
+                    <div class="card-section">
+                        <h3><i class="fas fa-plus-circle"></i> Start New SSH Session</h3>
+                        <div class="form-group">
+                            <label for="ssh-session-id" class="form-label">Session ID</label>
+                            <input type="text" id="ssh-session-id" class="form-control" placeholder="Enter a unique session ID">
+                        </div>
+                        <div class="form-group">
+                            <label for="ssh-server-select" class="form-label">Server</label>
+                            <select id="ssh-server-select" class="form-control">
+                                <option value="">Loading servers...</option>
+                            </select>
+                        </div>
+                        <button id="start-ssh-btn" class="btn btn-primary" onclick="startFeature('ssh')" disabled>
+                            <i class="fas fa-play"></i> Start SSH Session
+                        </button>
+                    </div>
+                    
+                    <div class="card-section">
+                        <h3><i class="fas fa-list"></i> Active SSH Sessions</h3>
+                        <div id="ssh-sessions-loading" class="loading-container">
+                            <div class="loading-spinner"></div>
+                            <span class="loading-text">Loading sessions...</span>
+                        </div>
+                        <div class="table-container" id="ssh-table-container" style="display: none;">
+                            <table id="ssh-table" class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Session ID</th>
+                                        <th>Server</th>
+                                        <th>Started</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HTTP Servers Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-globe"></i> HTTP Servers</h2>
+                </div>
+                <div class="card-body">
+                    <div class="card-section">
+                        <h3><i class="fas fa-plus-circle"></i> Start New HTTP Session</h3>
+                        <div class="form-group">
+                            <label for="http-session-id" class="form-label">Session ID</label>
+                            <input type="text" id="http-session-id" class="form-control" placeholder="Enter a unique session ID">
+                        </div>
+                        <div class="form-group">
+                            <label for="http-port" class="form-label">Port</label>
+                            <input type="number" id="http-port" class="form-control" placeholder="Enter port number (e.g., 8080)">
+                        </div>
+                        <div class="form-group">
+                            <label for="http-server-select" class="form-label">Server</label>
+                            <select id="http-server-select" class="form-control">
+                                <option value="">Loading servers...</option>
+                            </select>
+                        </div>
+                        <button id="start-http-btn" class="btn btn-primary" onclick="startFeature('http')" disabled>
+                            <i class="fas fa-play"></i> Start HTTP Session
+                        </button>
+                    </div>
+                    
+                    <div class="card-section">
+                        <h3><i class="fas fa-list"></i> Active HTTP Sessions</h3>
+                        <div id="http-sessions-loading" class="loading-container">
+                            <div class="loading-spinner"></div>
+                            <span class="loading-text">Loading sessions...</span>
+                        </div>
+                        <div class="table-container" id="http-table-container" style="display: none;">
+                            <table id="http-table" class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Session ID</th>
+                                        <th>Port</th>
+                                        <th>Server</th>
+                                        <th>Started</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Available Servers Card -->
+        <div class="card">
+            <div class="card-header">
+                <h2><i class="fas fa-server"></i> Available Servers</h2>
+                <div class="card-actions">
+                    <button class="btn btn-primary btn-sm" onclick="refreshStatus()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="servers-loading" class="loading-container">
+                    <div class="loading-spinner"></div>
+                    <span class="loading-text">Loading server registry...</span>
+                </div>
+                <div class="table-container" id="servers-table-container" style="display: none;">
+                    <table id="servers-table" class="table">
+                        <thead>
+                            <tr>
+                                <th>Server ID</th>
+                                <th>Type</th>
+                                <th>Host</th>
+                                <th>Started</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
-    
-    <div class="section">
-        <h2>Available Servers</h2>
-        <div id="servers-loading" class="loading">Loading server registry...</div>
-        <table id="servers-table" style="display: none;">
-            <thead>
-                <tr>
-                    <th>Server ID</th>
-                    <th>Type</th>
-                    <th>Host</th>
-                    <th>Started</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
-    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
 
     <script>
         // Server and session tracking
@@ -266,6 +791,7 @@
             manage: { servers: [] }
         };
         let refreshInterval;
+        let toastCounter = 0;
         
         // Initialize by refreshing the status
         document.addEventListener('DOMContentLoaded', function() {
@@ -273,9 +799,26 @@
             
             // Set up auto-refresh every 10 seconds
             refreshInterval = setInterval(refreshStatus, 10000);
+            
+            // Add animation to refresh icon when interval updates
+            setInterval(() => {
+                const refreshIcons = document.querySelectorAll('.refresh-time i');
+                refreshIcons.forEach(icon => {
+                    icon.classList.add('animate-pulse');
+                    setTimeout(() => {
+                        icon.classList.remove('animate-pulse');
+                    }, 1000);
+                });
+            }, 10000);
         });
         
         function refreshStatus() {
+            // Animate refresh buttons
+            const refreshButtons = document.querySelectorAll('button .fa-sync-alt');
+            refreshButtons.forEach(icon => {
+                icon.classList.add('fa-spin');
+            });
+            
             fetch('/api/status')
                 .then(response => {
                     if (!response.ok) {
@@ -287,10 +830,30 @@
                     servers = data;
                     updateUI();
                     document.getElementById('last-updated').textContent = `Last updated: ${new Date().toLocaleString()}`;
+                    
+                    // Success animation for refresh buttons
+                    refreshButtons.forEach(icon => {
+                        icon.classList.remove('fa-spin');
+                        icon.classList.add('fa-check');
+                        setTimeout(() => {
+                            icon.classList.remove('fa-check');
+                            icon.classList.add('fa-sync-alt');
+                        }, 1000);
+                    });
                 })
                 .catch(error => {
                     console.error('Error fetching status:', error);
-                    showToast('Failed to fetch server status', 'error');
+                    showToast('Error', 'Failed to fetch server status', 'error');
+                    
+                    // Error animation for refresh buttons
+                    refreshButtons.forEach(icon => {
+                        icon.classList.remove('fa-spin');
+                        icon.classList.add('fa-times');
+                        setTimeout(() => {
+                            icon.classList.remove('fa-times');
+                            icon.classList.add('fa-sync-alt');
+                        }, 1000);
+                    });
                 });
         }
         
@@ -353,6 +916,7 @@
         
         function updateServerList() {
             const serversTable = document.getElementById('servers-table');
+            const serversTableContainer = document.getElementById('servers-table-container');
             const loadingElement = document.getElementById('servers-loading');
             const tbody = serversTable.querySelector('tbody');
             
@@ -360,17 +924,24 @@
             const allServers = servers.manage.servers;
             
             if (allServers.length === 0) {
-                loadingElement.textContent = 'No servers registered';
-                serversTable.style.display = 'none';
+                loadingElement.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-server"></i>
+                        <p class="empty-state-text">No servers registered</p>
+                    </div>
+                `;
+                loadingElement.style.display = 'block';
+                serversTableContainer.style.display = 'none';
                 return;
             }
             
             loadingElement.style.display = 'none';
-            serversTable.style.display = 'table';
+            serversTableContainer.style.display = 'block';
             tbody.innerHTML = '';
             
-            allServers.forEach(server => {
+            allServers.forEach((server, index) => {
                 const row = tbody.insertRow();
+                row.style.animation = `fadeInUp ${0.2 + index * 0.05}s ease-out`;
                 
                 // Server ID
                 const idCell = row.insertCell();
@@ -378,7 +949,18 @@
                 
                 // Type
                 const typeCell = row.insertCell();
-                typeCell.textContent = getServerType(server);
+                let typeIcon;
+                let typeName = getServerType(server);
+                
+                if (typeName.includes('SSH')) {
+                    typeIcon = 'fas fa-terminal';
+                } else if (typeName.includes('HTTP')) {
+                    typeIcon = 'fas fa-globe';
+                } else {
+                    typeIcon = 'fas fa-cogs';
+                }
+                
+                typeCell.innerHTML = `<i class="${typeIcon}" style="margin-right: 0.5rem; color: var(--primary);"></i>${typeName}`;
                 
                 // Host
                 const hostCell = row.insertCell();
@@ -390,19 +972,25 @@
                 
                 // Status
                 const statusCell = row.insertCell();
-                const statusIndicator = document.createElement('span');
-                statusIndicator.className = `status-indicator status-${server.status === 'online' ? 'online' : 'offline'}`;
-                statusCell.appendChild(statusIndicator);
-                statusCell.appendChild(document.createTextNode(server.status || 'unknown'));
+                const statusClass = server.status === 'online' ? 'status-online' : 'status-offline';
+                const statusIcon = server.status === 'online' ? 'fas fa-circle' : 'fas fa-circle';
+                statusCell.innerHTML = `
+                    <span class="status-badge ${statusClass}">
+                        <i class="${statusIcon}"></i>
+                        ${server.status || 'unknown'}
+                    </span>
+                `;
                 
                 // Actions
                 const actionsCell = row.insertCell();
                 if (server.status === 'online') {
-                    const stopButton = document.createElement('button');
-                    stopButton.className = 'stop';
-                    stopButton.textContent = 'Stop';
-                    stopButton.onclick = () => stopServer(server.serverId);
-                    actionsCell.appendChild(stopButton);
+                    actionsCell.innerHTML = `
+                        <div class="table-actions">
+                            <button class="btn btn-danger btn-sm" onclick="stopServer('${server.serverId}')">
+                                <i class="fas fa-stop"></i> Stop
+                            </button>
+                        </div>
+                    `;
                 } else {
                     actionsCell.textContent = 'N/A';
                 }
@@ -411,8 +999,10 @@
         
         function updateSessionList(type) {
             const tableId = `${type}-table`;
+            const tableContainerId = `${type}-table-container`;
             const loadingId = `${type}-sessions-loading`;
             const table = document.getElementById(tableId);
+            const tableContainer = document.getElementById(tableContainerId);
             const loadingElement = document.getElementById(loadingId);
             const tbody = table.querySelector('tbody');
             
@@ -420,17 +1010,24 @@
             const sessionsServers = servers[type].servers;
             
             if (sessionsServers.length === 0) {
-                loadingElement.textContent = `No active ${type.toUpperCase()} sessions`;
-                table.style.display = 'none';
+                loadingElement.innerHTML = `
+                    <div class="empty-state">
+                        <i class="${type === 'ssh' ? 'fas fa-terminal' : 'fas fa-globe'}"></i>
+                        <p class="empty-state-text">No active ${type.toUpperCase()} sessions</p>
+                    </div>
+                `;
+                loadingElement.style.display = 'block';
+                tableContainer.style.display = 'none';
                 return;
             }
             
             loadingElement.style.display = 'none';
-            table.style.display = 'table';
+            tableContainer.style.display = 'block';
             tbody.innerHTML = '';
             
-            sessionsServers.forEach(server => {
+            sessionsServers.forEach((server, index) => {
                 const row = tbody.insertRow();
+                row.style.animation = `fadeInUp ${0.2 + index * 0.05}s ease-out`;
                 
                 // Session ID
                 const idCell = row.insertCell();
@@ -459,21 +1056,27 @@
                 
                 // Status
                 const statusCell = row.insertCell();
-                const statusIndicator = document.createElement('span');
-                statusIndicator.className = `status-indicator status-${
-                    server.status === 'online' || server.status === 'connected' ? 'online' : 'offline'
-                }`;
-                statusCell.appendChild(statusIndicator);
-                statusCell.appendChild(document.createTextNode(server.status || 'unknown'));
+                const isOnline = server.status === 'online' || server.status === 'connected';
+                const statusClass = isOnline ? 'status-online' : 'status-offline';
+                const statusIcon = isOnline ? 'fas fa-circle' : 'fas fa-circle';
+                
+                statusCell.innerHTML = `
+                    <span class="status-badge ${statusClass}">
+                        <i class="${statusIcon}"></i>
+                        ${server.status || 'unknown'}
+                    </span>
+                `;
                 
                 // Actions
                 const actionsCell = row.insertCell();
                 if (server.status !== 'exited' && server.status !== 'error') {
-                    const stopButton = document.createElement('button');
-                    stopButton.className = 'stop';
-                    stopButton.textContent = 'Stop';
-                    stopButton.onclick = () => stopFeature(type, server.sessionId, server.serverId);
-                    actionsCell.appendChild(stopButton);
+                    actionsCell.innerHTML = `
+                        <div class="table-actions">
+                            <button class="btn btn-danger btn-sm" onclick="stopFeature('${type}', '${server.sessionId}', '${server.serverId}')">
+                                <i class="fas fa-stop"></i> Stop
+                            </button>
+                        </div>
+                    `;
                 } else {
                     actionsCell.textContent = 'N/A';
                 }
@@ -490,13 +1093,15 @@
         function startFeature(featureType) {
             const sessionId = document.getElementById(`${featureType}-session-id`).value.trim();
             if (!sessionId) {
-                showToast('Please enter a session ID', 'error');
+                showToast('Validation Error', 'Please enter a session ID', 'error');
+                animateElement(`${featureType}-session-id`, 'shake');
                 return;
             }
             
             const serverId = document.getElementById(`${featureType}-server-select`).value;
             if (!serverId) {
-                showToast('Please select a server', 'error');
+                showToast('Validation Error', 'Please select a server', 'error');
+                animateElement(`${featureType}-server-select`, 'shake');
                 return;
             }
             
@@ -505,6 +1110,12 @@
                 port = document.getElementById('http-port').value.trim();
                 if (port) port = parseInt(port, 10);
             }
+            
+            // Disable the button and show loading state
+            const button = document.getElementById(`start-${featureType}-btn`);
+            const originalText = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Starting...`;
             
             // Send request to start feature on the selected server
             fetch(`/api/feature/${featureType}`, {
@@ -529,7 +1140,7 @@
             })
             .then(data => {
                 if (data.success) {
-                    showToast(`Started ${featureType} session with ID ${sessionId}`, 'success');
+                    showToast('Success', `Started ${featureType} session with ID ${sessionId}`, 'success');
                     
                     // Clear the input fields
                     document.getElementById(`${featureType}-session-id`).value = '';
@@ -540,11 +1151,16 @@
                     // Refresh the status after a short delay to see the new session
                     setTimeout(refreshStatus, 1000);
                 } else {
-                    showToast(data.error || 'Unknown error', 'error');
+                    showToast('Error', data.error || 'Unknown error', 'error');
                 }
             })
             .catch(error => {
-                showToast(error.message, 'error');
+                showToast('Error', error.message, 'error');
+            })
+            .finally(() => {
+                // Re-enable the button and restore original text
+                button.disabled = false;
+                button.innerHTML = originalText;
             });
         }
         
@@ -558,6 +1174,9 @@
             if (serverId && serverId.includes('_')) {
                 targetServer = serverId.split('_')[0]; // Get the server part
             }
+            
+            // Show loading state
+            showToast('Processing', `Stopping ${featureType.toUpperCase()} session...`, 'info');
             
             fetch(`/api/feature/${featureType}`, {
                 method: 'POST',
@@ -580,16 +1199,16 @@
             })
             .then(data => {
                 if (data.success) {
-                    showToast(`${featureType.toUpperCase()} session stopping command sent`, 'success');
+                    showToast('Success', `${featureType.toUpperCase()} session stopping command sent`, 'success');
                     
                     // Refresh the status after a short delay
                     setTimeout(refreshStatus, 1000);
                 } else {
-                    showToast(data.error || 'Unknown error', 'error');
+                    showToast('Error', data.error || 'Unknown error', 'error');
                 }
             })
             .catch(error => {
-                showToast(error.message, 'error');
+                showToast('Error', error.message, 'error');
             });
         }
         
@@ -597,6 +1216,9 @@
             if (!confirm('Are you sure you want to stop this server?')) {
                 return;
             }
+            
+            // Show loading state
+            showToast('Processing', 'Stopping server...', 'info');
             
             fetch('/api/feature/server', {
                 method: 'POST',
@@ -618,16 +1240,16 @@
             })
             .then(data => {
                 if (data.success) {
-                    showToast('Server stopping command sent', 'success');
+                    showToast('Success', 'Server stopping command sent', 'success');
                     
                     // Refresh the status after a short delay
                     setTimeout(refreshStatus, 1000);
                 } else {
-                    showToast(data.error || 'Unknown error', 'error');
+                    showToast('Error', data.error || 'Unknown error', 'error');
                 }
             })
             .catch(error => {
-                showToast(error.message, 'error');
+                showToast('Error', error.message, 'error');
             });
         }
         
@@ -654,14 +1276,64 @@
             return date.toLocaleString(undefined, options);
         }
         
-        function showToast(message, type = 'info') {
-            const toast = document.getElementById('toast');
-            toast.textContent = message;
-            toast.className = `toast show ${type}`;
+        function showToast(title, message, type = 'info') {
+            const toastContainer = document.getElementById('toast-container');
+            const toastId = `toast-${toastCounter++}`;
+            
+            let iconClass = 'fas fa-info-circle';
+            if (type === 'success') iconClass = 'fas fa-check-circle';
+            if (type === 'error') iconClass = 'fas fa-exclamation-circle';
+            
+            const toastElement = document.createElement('div');
+            toastElement.id = toastId;
+            toastElement.className = `toast ${type}`;
+            toastElement.innerHTML = `
+                <div class="toast-icon">
+                    <i class="${iconClass}"></i>
+                </div>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-message">${message}</div>
+                </div>
+                <button class="toast-close" onclick="dismissToast('${toastId}')">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            toastContainer.appendChild(toastElement);
+            
+            // Trigger animation in next frame
+            setTimeout(() => {
+                toastElement.classList.add('show');
+            }, 10);
+            
+            // Auto-dismiss after 5 seconds
+            setTimeout(() => {
+                dismissToast(toastId);
+            }, 5000);
+        }
+        
+        function dismissToast(toastId) {
+            const toast = document.getElementById(toastId);
+            if (toast) {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    toast.remove();
+                }, 300);
+            }
+        }
+        
+        function animateElement(elementId, animationName) {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+            
+            element.classList.add(`animate-${animationName}`);
+            element.style.borderColor = 'var(--danger)';
             
             setTimeout(() => {
-                toast.className = 'toast';
-            }, 3000);
+                element.classList.remove(`animate-${animationName}`);
+                element.style.borderColor = '';
+            }, 1000);
         }
         
         // Clean up on page unload

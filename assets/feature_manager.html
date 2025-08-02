@@ -133,6 +133,12 @@
         .toast.show {
             opacity: 1;
         }
+        .toast.success {
+            background-color: #4CAF50;
+        }
+        .toast.error {
+            background-color: #f44336;
+        }
         .info-bar {
             font-size: 12px;
             color: #666;
@@ -140,11 +146,17 @@
             margin-top: -10px;
             margin-bottom: 20px;
         }
+        .server-id {
+            font-family: monospace;
+            font-size: 12px;
+            color: #666;
+            margin-top: 3px;
+        }
     </style>
 </head>
 <body>
     <h1>JServ Feature Manager</h1>
-    <div class="info-bar">Last updated: 2025-08-02 06:19:00 by jayaraj-c-22540</div>
+    <div class="info-bar">Last updated: 2025-08-02 18:12:09 by jayaraj-c-22540</div>
     
     <div class="refresh-bar">
         <span id="last-updated">Never updated</span>
@@ -296,8 +308,6 @@
             updateSessionList('http');
         }
         
-        // Replace the updateServerDropdowns function in the HTML file with this:
-
         function updateServerDropdowns() {
             const sshDropdown = document.getElementById('ssh-server-select');
             const httpDropdown = document.getElementById('http-server-select');
@@ -346,12 +356,8 @@
             const loadingElement = document.getElementById('servers-loading');
             const tbody = serversTable.querySelector('tbody');
             
-            // Combine all servers
-            const allServers = [
-                // ...servers.ssh.servers,
-                // ...servers.http.servers,
-                ...servers.manage.servers
-            ];
+            // Combine all manage servers
+            const allServers = servers.manage.servers;
             
             if (allServers.length === 0) {
                 loadingElement.textContent = 'No servers registered';
@@ -391,11 +397,15 @@
                 
                 // Actions
                 const actionsCell = row.insertCell();
-                const stopButton = document.createElement('button');
-                stopButton.className = 'stop';
-                stopButton.textContent = 'Stop';
-                stopButton.onclick = () => stopServer(server.serverId);
-                actionsCell.appendChild(stopButton);
+                if (server.status === 'online') {
+                    const stopButton = document.createElement('button');
+                    stopButton.className = 'stop';
+                    stopButton.textContent = 'Stop';
+                    stopButton.onclick = () => stopServer(server.serverId);
+                    actionsCell.appendChild(stopButton);
+                } else {
+                    actionsCell.textContent = 'N/A';
+                }
             });
         }
         
@@ -406,8 +416,8 @@
             const loadingElement = document.getElementById(loadingId);
             const tbody = table.querySelector('tbody');
             
-            // Get sessions for this type (servers with sessionId)
-            const sessionsServers = servers[type].servers.filter(server => server.sessionId);
+            // Get sessions for this type
+            const sessionsServers = servers[type].servers;
             
             if (sessionsServers.length === 0) {
                 loadingElement.textContent = `No active ${type.toUpperCase()} sessions`;
@@ -421,10 +431,6 @@
             
             sessionsServers.forEach(server => {
                 const row = tbody.insertRow();
-
-                // Server ID
-                const sidCell = row.insertCell();
-                sidCell.textContent = server.serverId;
                 
                 // Session ID
                 const idCell = row.insertCell();
@@ -438,7 +444,14 @@
                 
                 // Server
                 const serverCell = row.insertCell();
-                serverCell.textContent = `${server.host} (${server.ip || 'unknown'})`;
+                const serverName = `${server.host} (${server.ip || 'unknown'})`;
+                serverCell.innerHTML = serverName;
+                
+                // Add server ID as small text
+                const serverIdDiv = document.createElement('div');
+                serverIdDiv.className = 'server-id';
+                serverIdDiv.textContent = server.serverId;
+                serverCell.appendChild(serverIdDiv);
                 
                 // Started
                 const startedCell = row.insertCell();
@@ -447,17 +460,23 @@
                 // Status
                 const statusCell = row.insertCell();
                 const statusIndicator = document.createElement('span');
-                statusIndicator.className = `status-indicator status-${server.status === 'online' ? 'online' : 'offline'}`;
+                statusIndicator.className = `status-indicator status-${
+                    server.status === 'online' || server.status === 'connected' ? 'online' : 'offline'
+                }`;
                 statusCell.appendChild(statusIndicator);
                 statusCell.appendChild(document.createTextNode(server.status || 'unknown'));
                 
                 // Actions
                 const actionsCell = row.insertCell();
-                const stopButton = document.createElement('button');
-                stopButton.className = 'stop';
-                stopButton.textContent = 'Stop';
-                stopButton.onclick = () => stopServer(server.serverId);
-                actionsCell.appendChild(stopButton);
+                if (server.status !== 'exited' && server.status !== 'error') {
+                    const stopButton = document.createElement('button');
+                    stopButton.className = 'stop';
+                    stopButton.textContent = 'Stop';
+                    stopButton.onclick = () => stopFeature(type, server.sessionId, server.serverId);
+                    actionsCell.appendChild(stopButton);
+                } else {
+                    actionsCell.textContent = 'N/A';
+                }
             });
         }
         
@@ -519,6 +538,51 @@
                     }
                     
                     // Refresh the status after a short delay to see the new session
+                    setTimeout(refreshStatus, 1000);
+                } else {
+                    showToast(data.error || 'Unknown error', 'error');
+                }
+            })
+            .catch(error => {
+                showToast(error.message, 'error');
+            });
+        }
+        
+        function stopFeature(featureType, sessionId, serverId) {
+            if (!confirm(`Are you sure you want to stop this ${featureType.toUpperCase()} session?`)) {
+                return;
+            }
+            
+            // Extract server ID from serverId (format: serverName_featureType_sessionId)
+            let targetServer = serverId;
+            if (serverId && serverId.includes('_')) {
+                targetServer = serverId.split('_')[0]; // Get the server part
+            }
+            
+            fetch(`/api/feature/${featureType}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    action: 'stop',
+                    sessionId,
+                    serverId
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.error || `Failed to stop ${featureType} session`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    showToast(`${featureType.toUpperCase()} session stopping command sent`, 'success');
+                    
+                    // Refresh the status after a short delay
                     setTimeout(refreshStatus, 1000);
                 } else {
                     showToast(data.error || 'Unknown error', 'error');

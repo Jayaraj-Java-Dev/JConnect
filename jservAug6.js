@@ -10,8 +10,7 @@ const { spawn } = require('child_process');
 // Usage: node jserv.js ssh|http|manage [SESSION_ID] [options]
 
 const initJsonPath = "./assets/init.json";
-const webPanelHtmlPath = "./assets/feature_manager.html";
-const serviceAccountPath = "./assets/firebase_config.json";
+const webPanelHtmlPath = "./assets/feature_manager.html";                                           const serviceAccountPath = "./assets/firebase_config.json";
 const thisFile = require.main.filename;
 
 // Helper function to check file existence and print a polite message
@@ -78,12 +77,12 @@ class JServController {
     // Use a single listener for all commands targeting this server
     this.commandListener = this.commandsRef.child(this.SERVER_ID).on('child_added', async (commandSnapshot) => {
       const command = commandSnapshot.val();
-      
+
       console.log(`Received command for this server:`, command);
-      
+
       // Always remove the command first to avoid re-processing
       await commandSnapshot.ref.remove();
-      
+
       if (command && command.action) {
         await this.handleCommand(command);
       }
@@ -92,13 +91,13 @@ class JServController {
 
   async handleCommand(command) {
     console.log(`Handling command: ${command.action}`);
-    
+
     if (command.action === 'stop') {
       // Stop the main server
       console.log('Stopping main server...');
       this.cleanup();
       process.exit(0);
-    } 
+    }
     else if (command.action === 'startSSH') {
       // Start SSH feature locally
       const { sessionId } = command;
@@ -137,40 +136,40 @@ class JServController {
   generateFeatureServerId(feature, sessionId) {
     return `${this.SERVER_ID}_${feature}_${sessionId}`;
   }
-  
+
   // Stop a feature by sessionId
   async stopFeature(feature, sessionId) {
     const serverId = this.generateFeatureServerId(feature, sessionId);
-    
+
     console.log(`Stopping ${feature} feature with serverId: ${serverId}`);
-    
+
     if (feature === 'ssh' && this.childProcesses.has(serverId)) {
       const childProcess = this.childProcesses.get(serverId);
       childProcess.kill('SIGTERM');
       this.childProcesses.delete(serverId);
-      
+
       // Update session state
       const refs = this.refs(`sessions/${sessionId}/ssh`);
       await refs.info.update({ status: "stopped" });
       await refs.state.set({ status: "stopped" });
-      
+
       console.log(`SSH process ${serverId} terminated`);
       return true;
-    } 
+    }
     else if (feature === 'http' && this.workers.has(serverId)) {
       const worker = this.workers.get(serverId);
       worker.postMessage({ type: 'stop' });
       this.workers.delete(serverId);
-      
+
       // Update session state
       const refs = this.refs(`sessions/${sessionId}/http`);
       await refs.info.update({ status: "stopped" });
       await refs.state.set({ status: "stopped" });
-      
+
       console.log(`HTTP worker ${serverId} terminated`);
       return true;
     }
-    
+
     console.log(`No ${feature} process found with serverId: ${serverId}`);
     return false;
   }
@@ -191,7 +190,7 @@ class JServController {
       if (this.heartbeatInterval) {
         clearInterval(this.heartbeatInterval);
       }
-      
+
       // Remove server record only if this is a manage server
       if (this.isManageServer) {
         try {
@@ -200,7 +199,7 @@ class JServController {
           console.error('Failed to remove main server from registry', e);
         }
       }
-      
+
       // Terminate all worker threads
       for (const [serverId, worker] of this.workers.entries()) {
         try {
@@ -210,7 +209,7 @@ class JServController {
           console.error(`Failed to terminate worker thread ${serverId}:`, e);
         }
       }
-      
+
       // Kill all child processes
       for (const [serverId, childProcess] of this.childProcesses.entries()) {
         try {
@@ -220,7 +219,7 @@ class JServController {
           console.error(`Failed to terminate child process ${serverId}:`, e);
         }
       }
-      
+
       // Remove command listener
       if (this.commandListener) {
         this.commandsRef.child(this.SERVER_ID).off('child_added', this.commandListener);
@@ -242,7 +241,7 @@ class JServController {
       if (this.heartbeatInterval) {
         clearInterval(this.heartbeatInterval);
       }
-      
+
       // Kill all child processes (synchronously)
       for (const childProcess of this.childProcesses.values()) {
         try {
@@ -297,7 +296,7 @@ class JServController {
   // Register only manage servers in the central registry
   async registerManageServer(port) {
     this.isManageServer = true;
-    
+
     const serverInfo = {
       type: 'manage',
       serverId: this.SERVER_ID,
@@ -309,10 +308,10 @@ class JServController {
       startedAt: admin.database.ServerValue.TIMESTAMP,
       lastHeartbeat: admin.database.ServerValue.TIMESTAMP
     };
-    
+
     // Register in central registry - only for manage servers
     await this.serversRef.child(this.SERVER_ID).set(serverInfo);
-    
+
     return this.SERVER_ID;
   }
 
@@ -320,45 +319,45 @@ class JServController {
   async startSSH(sessionId) {
     // Create a consistent server ID using hostname and session ID
     const serverId = this.generateFeatureServerId('ssh', sessionId);
-    
+
     // Check if this SSH session is already running
     if (this.childProcesses.has(serverId)) {
       console.log(`SSH session ${sessionId} is already running with ID: ${serverId}`);
       return serverId;
     }
-    
+
     // Create a child process for SSH
     const childProcess = spawn(process.execPath, [thisFile, 'ssh', sessionId, '--serverId', serverId], {
       stdio: 'inherit', // Changed to inherit for better debugging
       detached: false // Keep attached to parent for proper management
     });
-    
+
     this.childProcesses.set(serverId, childProcess);
-    
+
     // Handle child process events
     childProcess.on('exit', async (code) => {
       console.log(`SSH child process ${serverId} exited with code: ${code}`);
       this.childProcesses.delete(serverId);
-      
+
       // Update session info to show process exited
       const refs = this.refs(`sessions/${sessionId}/ssh`);
       await refs.info.update({ status: "exited", exitCode: code });
       await refs.state.set({ status: "exited", code });
     });
-    
+
     childProcess.on('error', async (error) => {
       console.error(`SSH child process ${serverId} error:`, error);
       this.childProcesses.delete(serverId);
-      
+
       // Update session info with error
       const refs = this.refs(`sessions/${sessionId}/ssh`);
-      await refs.info.update({ 
-        status: "error", 
-        error: error.message 
+      await refs.info.update({
+        status: "error",
+        error: error.message
       });
       await refs.state.set({ status: "error", error: error.message });
     });
-    
+
     return serverId;
   }
 
@@ -366,13 +365,13 @@ class JServController {
   async startHTTP(sessionId, port) {
     // Create a consistent server ID using hostname and session ID
     const serverId = this.generateFeatureServerId('http', sessionId);
-    
+
     // Check if this HTTP session is already running
     if (this.workers.has(serverId)) {
       console.log(`HTTP session ${sessionId} is already running with ID: ${serverId}`);
       return serverId;
     }
-    
+
     // Create a worker thread for HTTP
     const worker = new Worker(__filename, {
       workerData: {
@@ -383,48 +382,48 @@ class JServController {
         dbUrl
       }
     });
-    
+
     this.workers.set(serverId, worker);
-    
+
     // Handle worker messages
     worker.on('message', async (message) => {
       if (message.type === 'exit') {
         console.log(`HTTP worker ${serverId} exited with code: ${message.code}`);
-        
+
         // Update session info to show worker exited
         const refs = this.refs(`sessions/${sessionId}/http`);
         await refs.info.update({ status: "exited", exitCode: message.code });
         await refs.state.set({ status: "exited", code: message.code });
-        
+
         this.workers.delete(serverId);
       }
     });
-    
+
     worker.on('error', async (error) => {
       console.error(`HTTP worker ${serverId} error:`, error);
-      
+
       // Update session info with error
       const refs = this.refs(`sessions/${sessionId}/http`);
-      await refs.info.update({ 
-        status: "error", 
-        error: error.message 
+      await refs.info.update({
+        status: "error",
+        error: error.message
       });
       await refs.state.set({ status: "error", error: error.message });
-      
+
       this.workers.delete(serverId);
     });
-    
+
     worker.on('exit', async (code) => {
       if (this.workers.has(serverId)) {
         // Update session info
         const refs = this.refs(`sessions/${sessionId}/http`);
         await refs.info.update({ status: "exited", exitCode: code });
         await refs.state.set({ status: "exited", code });
-        
+
         this.workers.delete(serverId);
       }
     });
-    
+
     return serverId;
   }
 
@@ -433,16 +432,16 @@ class JServController {
     // Register only the management server in /servers
     await this.registerManageServer(port);
     console.log(`Management server registered with ID: ${this.SERVER_ID}`);
-    
+
     // Create HTTP server for the management UI
     const server = http.createServer(async (req, res) => {
       res.setHeader("Access-Control-Allow-Origin", "*");
       res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
       res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-      
+
       if (req.method === "OPTIONS") {
-        res.writeHead(204); 
-        res.end(); 
+        res.writeHead(204);
+        res.end();
         return;
       }
 
@@ -452,17 +451,17 @@ class JServController {
           // Fetch only manage servers from Firebase /servers
           const serversSnapshot = await this.serversRef.once('value');
           const servers = serversSnapshot.val() || {};
-          
+
           // Load all active sessions for SSH/HTTP info
           const sessionsSnapshot = await this.sessionsRef.once('value');
           const sessions = sessionsSnapshot.val() || {};
-          
+
           const result = {
             manage: { servers: [] },
             ssh: { servers: [] },
             http: { servers: [] }
           };
-          
+
           // Process manage servers from /servers registry
           Object.entries(servers).forEach(([serverId, server]) => {
             if (server.type === 'manage') {
@@ -477,7 +476,7 @@ class JServController {
               });
             }
           });
-          
+
           // Process sessions for SSH and HTTP info
           Object.entries(sessions).forEach(([sessionId, sessionData]) => {
             // Add SSH servers from sessions
@@ -494,7 +493,7 @@ class JServController {
                 sessionInfo: sshInfo
               });
             }
-            
+
             // Add HTTP servers from sessions
             if (sessionData.http && sessionData.http.info) {
               const httpInfo = sessionData.http.info;
@@ -511,7 +510,7 @@ class JServController {
               });
             }
           });
-          
+
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify(result));
         } catch (error) {
@@ -519,13 +518,13 @@ class JServController {
           res.writeHead(500, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ error: "Failed to fetch server status" }));
         }
-      } 
+      }
       else if (req.url === "/api/sessions" && req.method === "GET") {
         try {
           // Fetch sessions from Firebase
           const snapshot = await this.sessionsRef.once('value');
           const sessions = snapshot.val() || {};
-          
+
           // Format sessions for the UI
           const result = [];
           Object.entries(sessions).forEach(([sessionId, data]) => {
@@ -533,7 +532,7 @@ class JServController {
               sessionId,
               features: []
             };
-            
+
             // Add SSH feature if present
             if (data.ssh && data.ssh.info) {
               sessionInfo.features.push({
@@ -542,7 +541,7 @@ class JServController {
                 status: data.ssh.state ? data.ssh.state.status : 'unknown'
               });
             }
-            
+
             // Add HTTP feature if present
             if (data.http && data.http.info) {
               sessionInfo.features.push({
@@ -552,10 +551,10 @@ class JServController {
                 status: data.http.state ? data.http.state.status : 'unknown'
               });
             }
-            
+
             result.push(sessionInfo);
           });
-          
+
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify(result));
         } catch (error) {
@@ -573,24 +572,24 @@ class JServController {
             const parsed = JSON.parse(body);
             const { action, sessionId, port, serverId: targetServerId } = parsed;
             const feature = req.url.split("/")[3];
-            
+
             if (!['ssh', 'http'].includes(feature)) {
               res.writeHead(400, { "Content-Type": "application/json" });
               return res.end(JSON.stringify({ error: "Invalid feature type" }));
             }
-            
+
             if (action === "start") {
               if (!sessionId) {
                 res.writeHead(400, { "Content-Type": "application/json" });
                 return res.end(JSON.stringify({ error: "Session ID is required" }));
               }
-              
+
               // Always send commands to specific servers via Firebase
               // This centralizes all start/stop operations through the command system
-              
+
               // Determine which server should handle this
               let targetServer = targetServerId || this.SERVER_ID;
-              
+
               // Send the command
               const commandRef = this.commandsRef.child(targetServer).push();
               if (feature === 'ssh') {
@@ -607,42 +606,42 @@ class JServController {
                   timestamp: admin.database.ServerValue.TIMESTAMP
                 });
               }
-              
+
               // Calculate what the server ID will be
               const resultServerId = `${targetServer}_${feature}_${sessionId}`;
               console.log(`Sent start command for ${feature} session ${sessionId} to server ${targetServer}`);
-              
+
               res.writeHead(200, { "Content-Type": "application/json" });
-              res.end(JSON.stringify({ 
+              res.end(JSON.stringify({
                 success: true,
                 message: `Started ${feature} session with ID ${sessionId}`,
                 serverId: resultServerId
               }));
-            } 
+            }
             else if (action === "stop") {
               if (!sessionId) {
                 res.writeHead(400, { "Content-Type": "application/json" });
                 return res.end(JSON.stringify({ error: "Session ID is required" }));
               }
-              
+
               // Always stop via Firebase commands for consistency
               // Parse serverId to get the server that's running it
               let targetServer = targetServerId;
-              
+
               // If targetServerId includes sessionId, extract the server part
               if (targetServerId && targetServerId.includes(sessionId)) {
                 // Format is: serverName_feature_sessionId
                 targetServer = targetServerId.split(`_${feature}_${sessionId}`)[0];
               }
-              
+
               // If we can't determine the server, use this server
               if (!targetServer) {
                 targetServer = this.SERVER_ID;
               }
-              
+
               // Send stop command
               const commandRef = this.commandsRef.child(targetServer).push();
-              
+
               if (feature === 'ssh') {
                 await commandRef.set({
                   action: "stopSSH",
@@ -656,15 +655,15 @@ class JServController {
                   timestamp: admin.database.ServerValue.TIMESTAMP
                 });
               }
-              
+
               console.log(`Sent stop command for ${feature} session ${sessionId} to server ${targetServer}`);
-              
+
               res.writeHead(200, { "Content-Type": "application/json" });
-              res.end(JSON.stringify({ 
+              res.end(JSON.stringify({
                 success: true,
                 message: `Stopped ${feature} session with ID ${sessionId}`
               }));
-            } 
+            }
             else {
               res.writeHead(400, { "Content-Type": "application/json" });
               res.end(JSON.stringify({ error: "Unknown action" }));
@@ -675,17 +674,17 @@ class JServController {
             res.end(JSON.stringify({ error: "Invalid request" }));
           }
         });
-      } 
+      }
       else if (req.url === "/" && req.method === "GET") {
-        res.writeHead(200, { "Content-Type": "text/html" }); 
+        res.writeHead(200, { "Content-Type": "text/html" });
         res.end(webPanelHtml);
-      } 
+      }
       else {
         res.writeHead(404, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: "Not found" }));
       }
     });
-    
+
     server.listen(port, () => {
       console.log(`Feature management UI running on http://localhost:${port}/`);
     });
@@ -695,7 +694,7 @@ class JServController {
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
     }
-    
+
     // Remove all Firebase listeners
     if (this.commandListener) {
       this.commandsRef.child(this.SERVER_ID).off('child_added', this.commandListener);
@@ -707,22 +706,22 @@ class JServController {
 async function runSSHServer(sessionId, serverId) {
   // Import node-pty here, only in the SSH process
   const pty = require("node-pty");
-  
+
   // Initialize Firebase
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
     databaseURL: dbUrl,
   });
-  
+
   const db = admin.database();
   const commandsRef = db.ref("commands");
-  
+
   // Set up the session references - store detailed info here, not in /servers
   const sessionInfoRef = db.ref(`sessions/${sessionId}/ssh/info`);
   const sessionStateRef = db.ref(`sessions/${sessionId}/ssh/state`);
   const sessionInputRef = db.ref(`sessions/${sessionId}/ssh/input`);
   const sessionOutputRef = db.ref(`sessions/${sessionId}/ssh/output`);
-  
+
   // Set system info helper function in SSH process
   function getSystemInfo() {
     return {
@@ -739,7 +738,7 @@ async function runSSHServer(sessionId, serverId) {
       username: os.userInfo().username
     };
   }
-  
+
   // Get IP helper function in SSH process
   function getServerIp() {
     const interfaces = os.networkInterfaces();
@@ -752,7 +751,7 @@ async function runSSHServer(sessionId, serverId) {
     }
     return 'unknown';
   }
-  
+
   // Store detailed server information in session info only
   await sessionInfoRef.set({
     server: getSystemInfo(),
@@ -762,7 +761,7 @@ async function runSSHServer(sessionId, serverId) {
     startedAt: admin.database.ServerValue.TIMESTAMP,
     lastHeartbeat: admin.database.ServerValue.TIMESTAMP
   });
-  
+
   // Set up heartbeat for session info only
   const heartbeatInterval = setInterval(() => {
     sessionInfoRef.update({
@@ -770,38 +769,38 @@ async function runSSHServer(sessionId, serverId) {
       status: "online"
     });
   }, 30000);
-  
+
   // Set up command listener for this specific serverId
   const commandListener = commandsRef.child(serverId).on('child_added', async (snapshot) => {
     const command = snapshot.val();
     console.log(`SSH process received command:`, command);
-    
+
     // Always remove the command first to avoid re-processing
     await snapshot.ref.remove();
-    
+
     if (command && command.action === 'stop') {
       console.log('Received stop command, shutting down SSH process...');
       process.exit(0);
     }
   });
-  
+
   // Set up cleanup
   ['SIGINT', 'SIGTERM', 'SIGQUIT'].forEach(signal => {
     process.on(signal, async () => {
       clearInterval(heartbeatInterval);
       commandsRef.child(serverId).off('child_added', commandListener);
-      
+
       // Update session info and state
       await sessionInfoRef.update({ status: "shutting_down" });
       await sessionStateRef.set({ status: "disconnected", code: 0 });
-      
+
       process.exit(0);
     });
   });
-  
+
   // Update state to connected
   await sessionStateRef.set({ status: "connected", serverId });
-  
+
   const shell = pty.spawn("/bin/bash", [], {
     name: "xterm-256color",
     cols: 100,
@@ -809,11 +808,11 @@ async function runSSHServer(sessionId, serverId) {
     cwd: process.env.HOME,
     env: process.env,
   });
-  
+
   shell.on("data", (data) => {
     sessionOutputRef.push({ data: Buffer.from(data, "utf8").toString("base64") });
   });
-  
+
   sessionInputRef.on("child_added", (snapshot) => {
     const val = snapshot.val();
     if (val && val.data) {
@@ -822,34 +821,34 @@ async function runSSHServer(sessionId, serverId) {
     }
     snapshot.ref.remove();
   });
-  
+
   shell.on("exit", async (code) => {
     // Update session info and state
     await sessionInfoRef.update({ status: "exited", exitCode: code });
     await sessionStateRef.set({ status: "exited", code });
-    
+
     clearInterval(heartbeatInterval);
     commandsRef.child(serverId).off('child_added', commandListener);
-    
+
     process.exit(code || 0);
   });
-  
+
   console.log(`SSH server running for session ${sessionId} with ID ${serverId}`);
 }
 
 // Worker Thread Implementation for HTTP
 async function runHTTPWorker(data) {
   const { sessionId, serverId, dbUrl, port } = data;
-  
+
   // Initialize Firebase within the worker
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
     databaseURL: dbUrl,
   });
-  
+
   const db = admin.database();
   const commandsRef = db.ref("commands");
-  
+
   // Set system info helper function in HTTP worker
   function getSystemInfo() {
     return {
@@ -866,7 +865,7 @@ async function runHTTPWorker(data) {
       username: os.userInfo().username
     };
   }
-  
+
   // Get IP helper function in HTTP worker
   function getServerIp() {
     const interfaces = os.networkInterfaces();
@@ -879,13 +878,13 @@ async function runHTTPWorker(data) {
     }
     return 'unknown';
   }
-  
+
   // Set up session references - store detailed info here, not in /servers
   const sessionInfoRef = db.ref(`sessions/${sessionId}/http/info`);
   const sessionStateRef = db.ref(`sessions/${sessionId}/http/state`);
   const sessionInputRef = db.ref(`sessions/${sessionId}/http/input`);
   const sessionOutputRef = db.ref(`sessions/${sessionId}/http/output`);
-  
+
   // Store detailed server information in session info only
   await sessionInfoRef.set({
     server: getSystemInfo(),
@@ -896,7 +895,7 @@ async function runHTTPWorker(data) {
     startedAt: admin.database.ServerValue.TIMESTAMP,
     lastHeartbeat: admin.database.ServerValue.TIMESTAMP
   });
-  
+
   // Set up heartbeat for session info only
   const heartbeatInterval = setInterval(() => {
     sessionInfoRef.update({
@@ -904,205 +903,100 @@ async function runHTTPWorker(data) {
       status: "online"
     });
   }, 30000);
-  
+
   // Set up command listener for the specific serverId
   const commandListener = commandsRef.child(serverId).on('child_added', async (snapshot) => {
     const command = snapshot.val();
     console.log(`HTTP worker received command:`, command);
-    
+
     // Always remove the command first to avoid re-processing
     await snapshot.ref.remove();
-    
+
     if (command && command.action === 'stop') {
       console.log('Received stop command, shutting down HTTP worker...');
-      
+
       // Clean up
       clearInterval(heartbeatInterval);
       commandsRef.child(serverId).off('child_added', commandListener);
       sessionInputRef.off("child_added", inputHandler);
-      
+
       // Update session info and state
       await sessionInfoRef.update({ status: "stopped" });
       await sessionStateRef.set({ status: "stopped" });
-      
+
       // Send exit message to parent
       parentPort.postMessage({ type: 'exit', code: 0 });
-      
+
       // Allow some time for the message to be sent before exiting
       setTimeout(() => process.exit(0), 500);
     }
   });
-  
+
   // Update state to connected
   await sessionStateRef.set({ status: "connected", serverId, port });
-  
+
   // Setup input handler
-  // const inputHandler = sessionInputRef.on("child_added", async (snapshot) => {
-  //   const val = snapshot.val();
-  //   if (
-  //     val &&
-  //     val.reqId &&
-  //     val.port &&
-  //     val.method &&
-  //     typeof val.uri === "string"
-  //   ) {
-  //     // Capture client info if present
-  //     if (val.clientInfo && !await sessionInfoRef.child('client').once('value').then(snap => snap.exists())) {
-  //       await sessionInfoRef.child('client').set(val.clientInfo);
-  //     }
-      
-  //     const options = {
-  //       hostname: "localhost",
-  //       port: parseInt(val.port, 10),
-  //       path: val.uri,
-  //       method: val.method,
-  //       headers: val.headers,
-  //     };
-
-  //     let respData = Buffer.alloc(0);
-  //     let status = 500;
-  //     let headers = {};
-  //     try {
-  //       await new Promise((resolve, reject) => {
-  //         const req = http.request(options, (resp) => {
-  //           status = resp.statusCode;
-  //           headers = resp.headers;
-  //           resp.on("data", (chunk) => {
-  //             respData = Buffer.concat([respData, chunk]);
-  //           });
-  //           resp.on("end", resolve);
-  //         });
-  //         req.on("error", (err) => {
-  //           respData = Buffer.from("Error: " + err.message);
-  //           status = 502;
-  //           resolve();
-  //         });
-  //         if (val.body) {
-  //           req.write(Buffer.from(val.body, "base64"));
-  //         }
-  //         req.end();
-  //       });
-  //     } catch (e) {
-  //       respData = Buffer.from("Internal Server Error");
-  //       status = 500;
-  //     }
-      
-  //     sessionOutputRef.push({
-  //       reqId: val.reqId,
-  //       status,
-  //       headers,
-  //       body: respData.toString("base64"),
-  //     });
-  //   }
-  //   snapshot.ref.remove();
-  // });
-
-const inputHandler = sessionInputRef.on("child_added", async (snapshot) => {
-  const val = snapshot.val();
-  if (
-    val &&
-    val.reqId &&
-    val.port &&
-    val.method &&
-    typeof val.uri === "string"
-  ) {
-    // Capture client info if present
-    if (val.clientInfo && !await sessionInfoRef.child('client').once('value').then(snap => snap.exists())) {
-      // Make sure no undefined values are included in clientInfo
-      const safeClientInfo = {};
-      Object.entries(val.clientInfo).forEach(([key, value]) => {
-        if (value !== undefined) {
-          safeClientInfo[key] = value;
-        } else {
-          safeClientInfo[key] = null; // Replace undefined with null which is valid in Firebase
-        }
-      });
-      await sessionInfoRef.child('client').set(safeClientInfo);
-    }
-    
-    const options = {
-      hostname: "localhost",
-      port: parseInt(val.port, 10),
-      path: val.uri,
-      method: val.method,
-      headers: val.headers,
-    };
-
-    try {
-      const req = http.request(options, (resp) => {
-        // Sanitize headers to remove any undefined values which will cause Firebase validation errors
-        const safeHeaders = {};
-        if (resp.headers) {
-          Object.entries(resp.headers).forEach(([key, value]) => {
-            if (value !== undefined) {
-              safeHeaders[key] = value;
-            }
-          });
-        }
-
-        // Send initial response with headers and status
-        sessionOutputRef.push({
-          reqId: val.reqId,
-          status: resp.statusCode || 500, // Default to 500 if statusCode is undefined
-          headers: safeHeaders,
-          type: 'start'
-        });
-
-        // Create a unique stream ID for this response
-        const streamId = `${val.reqId}_stream`;
-        const streamRef = db.ref(`sessions/${sessionId}/http/streams/${streamId}`);
-        
-        // Handle streaming data chunks
-        resp.on("data", (chunk) => {
-          streamRef.push({
-            reqId: val.reqId,
-            body: chunk.toString("base64"),
-            type: 'chunk'
-          });
-        });
-
-        // Handle end of response
-        resp.on("end", () => {
-          streamRef.push({
-            reqId: val.reqId,
-            type: 'end'
-          });
-          
-          // Clean up the stream reference after a short delay
-          setTimeout(() => {
-            streamRef.remove();
-          }, 5000); // Allow time for client to receive all chunks
-        });
-      });
-
-      req.on("error", (err) => {
-        sessionOutputRef.push({
-          reqId: val.reqId,
-          status: 502,
-          headers: {}, // Empty object instead of undefined
-          body: Buffer.from("Error: " + (err.message || "Unknown error")).toString("base64"),
-          type: 'error'
-        });
-      });
-
-      if (val.body) {
-        req.write(Buffer.from(val.body, "base64"));
+  const inputHandler = sessionInputRef.on("child_added", async (snapshot) => {
+    const val = snapshot.val();
+    if (
+      val &&
+      val.reqId &&
+      val.port &&
+      val.method &&
+      typeof val.uri === "string"
+    ) {
+      // Capture client info if present
+      if (val.clientInfo && !await sessionInfoRef.child('client').once('value').then(snap => snap.exists())) {
+        await sessionInfoRef.child('client').set(val.clientInfo);
       }
-      req.end();
-    } catch (e) {
+
+      const options = {
+        hostname: "localhost",
+        port: parseInt(val.port, 10),
+        path: val.uri,
+        method: val.method,
+        headers: val.headers,
+        timeout: 100000,
+      };
+
+      let respData = Buffer.alloc(0);
+      let status = 500;
+      let headers = {};
+      try {
+        await new Promise((resolve, reject) => {
+          const req = http.request(options, (resp) => {
+            status = resp.statusCode;
+            headers = resp.headers;
+            resp.on("data", (chunk) => {
+              respData = Buffer.concat([respData, chunk]);
+            });
+            resp.on("end", resolve);
+          });
+          req.on("error", (err) => {
+            respData = Buffer.from("Error: " + err.message);
+            status = 502;
+            resolve();
+          });
+          if (val.body) {
+            req.write(Buffer.from(val.body, "base64"));
+          }
+          req.end();
+        });
+      } catch (e) {
+        respData = Buffer.from("Internal Server Error");
+        status = 500;
+      }
+
       sessionOutputRef.push({
         reqId: val.reqId,
-        status: 500,
-        headers: {}, // Empty object instead of undefined
-        body: Buffer.from("Internal Server Error").toString("base64"),
-        type: 'error'
+        status,
+        headers,
+        body: respData.toString("base64"),
       });
     }
-    
     snapshot.ref.remove();
-  }
-});
-  
+  });
+
   // Listen for messages from the main thread
   parentPort.on('message', async (message) => {
     if (message.type === 'stop') {
@@ -1110,21 +1004,21 @@ const inputHandler = sessionInputRef.on("child_added", async (snapshot) => {
       clearInterval(heartbeatInterval);
       commandsRef.child(serverId).off('child_added', commandListener);
       sessionInputRef.off("child_added", inputHandler);
-      
+
       // Update session info and state
       await sessionInfoRef.update({ status: "stopped" });
       await sessionStateRef.set({ status: "stopped" });
-      
+
       // Send exit message to parent
       parentPort.postMessage({ type: 'exit', code: 0 });
     }
   });
-  
+
   // Clean up on worker exit
   process.on('exit', () => {
     clearInterval(heartbeatInterval);
   });
-  
+
   console.log(`HTTP worker running for session ${sessionId}, port ${port}, serverId: ${serverId}`);
 }
 
@@ -1132,7 +1026,7 @@ const inputHandler = sessionInputRef.on("child_added", async (snapshot) => {
 if (isMainThread) {
   // Main thread code
   const feature = process.argv[2];
-  
+
   if (!feature || !["ssh", "http", "manage"].includes(feature)) {
     console.error(
       "Usage: node jserv.js ssh|http|manage [SESSION_ID] [options]\n" +
@@ -1140,7 +1034,7 @@ if (isMainThread) {
     );
     process.exit(1);
   }
-  
+
   // Parse the --serverId argument for SSH child processes
   let customServerId = null;
   for (let i = 3; i < process.argv.length; i++) {
@@ -1149,7 +1043,7 @@ if (isMainThread) {
       break;
     }
   }
-  
+
   // Special case for SSH child process
   if (feature === "ssh" && customServerId) {
     const SESSION_ID = process.argv[3];
@@ -1157,17 +1051,17 @@ if (isMainThread) {
       console.error("SESSION_ID is mandatory");
       process.exit(1);
     }
-    
+
     runSSHServer(SESSION_ID, customServerId);
   }
   // Normal case for starting the controller
   else {
     // Create and initialize the controller
     const controller = new JServController();
-    
+
     (async () => {
       await controller.init();
-      
+
       if (feature === "manage") {
         // Determine port for manage feature
         let MANAGE_PORT = 55777;
@@ -1175,20 +1069,20 @@ if (isMainThread) {
           const portNum = parseInt(process.argv[3], 10);
           if (portNum > 0 && portNum < 65536) MANAGE_PORT = portNum;
         }
-        
+
         await controller.runManageServer(MANAGE_PORT);
       } else {
         // For direct execution (not using commands), we'll use the command system internally
         const SESSION_ID = process.argv[3];
-        
+
         if (!SESSION_ID) {
           console.error("SESSION_ID is mandatory");
           process.exit(1);
         }
-        
+
         // Push command to start the feature for this server
         const commandRef = controller.commandsRef.child(controller.SERVER_ID).push();
-        
+
         if (feature === "ssh") {
           await commandRef.set({
             action: "startSSH",
@@ -1204,7 +1098,7 @@ if (isMainThread) {
               break;
             }
           }
-          
+
           await commandRef.set({
             action: "startHTTP",
             sessionId: SESSION_ID,
@@ -1218,7 +1112,7 @@ if (isMainThread) {
 } else {
   // Worker thread code
   const data = workerData;
-  
+
   if (data.type === 'http') {
     runHTTPWorker(data);
   }

@@ -14,19 +14,14 @@
 <body>
 
     <div id="app-container">
-        <!-- Sidebar for live servers and sessions -->
+        <!-- Sidebar -->
         <div id="sidebar">
             <div class="sidebar-section">
-                <div class="sidebar-header">
-                    <button id="sidebar-toggle-btn" class="icon-btn" title="Toggle Sidebar">☰</button>
-                    <h2>Live Servers</h2>
-                </div>
+                <div class="sidebar-header"><h2>Live Servers</h2></div>
                 <ul id="server-list" class="live-list"></ul>
             </div>
             <div class="sidebar-section">
-                <div class="sidebar-header">
-                    <h2>Active Sessions</h2>
-                </div>
+                <div class="sidebar-header"><h2>Active Sessions</h2></div>
                 <ul id="session-list" class="live-list"></ul>
             </div>
             <div class="sidebar-footer">
@@ -34,20 +29,20 @@
             </div>
         </div>
 
-        <!-- Main content area for terminals -->
+        <!-- Main content area -->
         <div id="main-content">
-            <div id="tab-bar">
-                <!-- Active terminal tabs will be dynamically inserted here -->
+            <!-- NEW: Top bar for stable layout of controls -->
+            <div id="top-bar">
+                <button id="sidebar-toggle-btn" class="icon-btn" title="Toggle Sidebar">☰</button>
+                <div id="tab-bar"></div>
             </div>
-            <div id="terminal-host">
-                <!-- Individual terminal instances will be mounted here -->
-            </div>
+            <div id="terminal-host"></div>
             <div id="welcome-screen">
                 <h1>JConnect Pro</h1>
                 <p>Select an active SSH session from the sidebar to begin.</p>
                 <div id="initial-loader" class="hidden">
                     <div class="spinner"></div>
-                    <p>Connecting to Firebase and fetching live data...</p>
+                    <p>Connecting to Firebase...</p>
                 </div>
             </div>
         </div>
@@ -56,6 +51,7 @@
     <!-- Settings Modal -->
     <div id="modal-backdrop" class="hidden">
         <div id="settings-modal" class="modal">
+            <button class="modal-close-btn" title="Close">×</button>
             <h3>Firebase Configuration</h3>
             <textarea id="firebase-config" placeholder="Paste your Firebase Web Config JSON here..."></textarea>
             <div class="modal-actions">

@@ -124,17 +124,62 @@ function uniqueId() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
+
 async function runHTTPClient() {
-  const { input, output, state } = refs(`sessions/${SESSION_ID}/http`);
-  state.set({ status: "client-connected" });
+  const sessionRef = db.ref(`sessions/${SESSION_ID}/http`);
+  const input = sessionRef.child("input");
+  const output = sessionRef.child("output");
+  const state = sessionRef.child("state");
+  const streams = sessionRef.child("streams");
+
+  await state.set({ status: "client-connected" });
 
   const pending = {};
 
+  // Listen for the initial 'start' response from the server
   output.on("child_added", (snapshot) => {
     const val = snapshot.val();
     if (val && val.reqId && pending[val.reqId]) {
-      pending[val.reqId].resolve(val);
-      delete pending[val.reqId];
+      // Don't resolve the main promise here. Instead, handle the stream.
+      if (val.type === 'start') {
+        const { res } = pending[val.reqId];
+        res.writeHead(val.status || 500, val.headers || {});
+        
+        // The server will now send chunks to a stream path
+        const streamId = `${val.reqId}_stream`;
+        const streamRef = streams.child(streamId);
+
+        const streamListener = streamRef.on("child_added", (chunkSnapshot) => {
+          const chunkData = chunkSnapshot.val();
+          
+          if (chunkData.type === 'chunk' && chunkData.body) {
+            res.write(Buffer.from(chunkData.body, "base64"));
+          } else if (chunkData.type === 'end') {
+            res.end();
+            // Clean up
+            streamRef.off("child_added", streamListener);
+            streamRef.remove();
+            delete pending[val.reqId];
+          }
+        });
+        
+        // Handle cases where the stream ends unexpectedly or times out
+        setTimeout(() => {
+          if (pending[val.reqId]) { // If still pending, it means 'end' was not received
+            res.end();
+            streamRef.off("child_added", streamListener);
+            streamRef.remove();
+            delete pending[val.reqId];
+          }
+        }, 30000); // 30-second timeout for the whole stream
+
+      } else if (val.type === 'error') {
+        // Handle non-streaming errors
+        const { res } = pending[val.reqId];
+        res.writeHead(val.status || 500, val.headers || {});
+        res.end(Buffer.from(val.body || "", "base64"));
+        delete pending[val.reqId];
+      }
     }
     snapshot.ref.remove();
   });
@@ -145,7 +190,7 @@ async function runHTTPClient() {
     let targetPort, uri;
     if (fixedTargetPort) {
       targetPort = fixedTargetPort;
-      uri = parsedUrl.pathname;
+      uri = parsedUrl.pathname + (parsedUrl.search || '');
     } else {
       const [_, port, ...uriParts] = parsedUrl.pathname.split("/");
       if (!port || isNaN(parseInt(port, 10))) {
@@ -154,7 +199,7 @@ async function runHTTPClient() {
         return;
       }
       targetPort = parseInt(port, 10);
-      uri = "/" + uriParts.join("/");
+      uri = "/" + uriParts.join("/") + (parsedUrl.search || '');
     }
 
     let body = [];
@@ -165,6 +210,11 @@ async function runHTTPClient() {
       .on("end", async () => {
         body = Buffer.concat(body);
         const reqId = uniqueId();
+
+        // Store the response object to stream back into it later
+        pending[reqId] = { res };
+
+        // Push request to server
         input.push({
           reqId,
           port: targetPort,
@@ -172,21 +222,21 @@ async function runHTTPClient() {
           uri,
           headers: req.headers,
           body: body.toString("base64"),
+          // Include client info for the server
+          clientInfo: {
+            ip: req.socket.remoteAddress,
+            userAgent: req.headers['user-agent']
+          }
         });
 
-        const promise = new Promise((resolve) => {
-          pending[reqId] = { resolve };
-          setTimeout(() => {
-            if (pending[reqId]) {
-              resolve({ status: 504, headers: {}, body: Buffer.from("Timeout").toString("base64") });
-              delete pending[reqId];
-            }
-          }, 30000);
-        });
-
-        const resp = await promise;
-        res.writeHead(resp.status || 500, resp.headers || {});
-        res.end(Buffer.from(resp.body || "", "base64"));
+        // Set a timeout for the initial response from the server
+        setTimeout(() => {
+          if (pending[reqId] && !res.headersSent) {
+            res.writeHead(504);
+            res.end("Timeout waiting for server response.");
+            delete pending[reqId];
+          }
+        }, 10000); // 10-second timeout for initial contact
       });
   });
 

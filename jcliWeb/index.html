@@ -3,37 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web SSH Client over Firebase</title>
+    <title>JConnect - Pro Dashboard</title>
     
-    <!-- Xterm.js Library & Fit Addon -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm/css/xterm.css" />
     <script src="https://cdn.jsdelivr.net/npm/xterm/lib/xterm.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit/lib/xterm-addon-fit.js"></script>
 
-    <!-- Main Styles -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <!-- This div is the mount point for xterm.js -->
-    <div id="terminal"></div>
+    <div id="app-container">
+        <!-- Sidebar for live servers and sessions -->
+        <div id="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-header">
+                    <button id="sidebar-toggle-btn" class="icon-btn" title="Toggle Sidebar">☰</button>
+                    <h2>Live Servers</h2>
+                </div>
+                <ul id="server-list" class="live-list"></ul>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-header">
+                    <h2>Active Sessions</h2>
+                </div>
+                <ul id="session-list" class="live-list"></ul>
+            </div>
+            <div class="sidebar-footer">
+                <button id="settings-btn" class="icon-btn" title="Settings">⚙️</button>
+            </div>
+        </div>
 
-    <div id="config-overlay">
-        <div id="config-modal">
-            <h2>Connect to Session</h2>
-            <p>Enter your Firebase configuration and Session ID to begin.</p>
-            <textarea id="firebase-config" placeholder="Paste your Firebase Web Config JSON here..."></textarea>
-            <input type="text" id="session-id" placeholder="Enter Session ID">
-            <button id="connect-btn">Connect</button>
-            <div id="error-message"></div>
+        <!-- Main content area for terminals -->
+        <div id="main-content">
+            <div id="tab-bar">
+                <!-- Active terminal tabs will be dynamically inserted here -->
+            </div>
+            <div id="terminal-host">
+                <!-- Individual terminal instances will be mounted here -->
+            </div>
+            <div id="welcome-screen">
+                <h1>JConnect Pro</h1>
+                <p>Select an active SSH session from the sidebar to begin.</p>
+                <div id="initial-loader" class="hidden">
+                    <div class="spinner"></div>
+                    <p>Connecting to Firebase and fetching live data...</p>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Firebase SDK -->
+    <!-- Settings Modal -->
+    <div id="modal-backdrop" class="hidden">
+        <div id="settings-modal" class="modal">
+            <h3>Firebase Configuration</h3>
+            <textarea id="firebase-config" placeholder="Paste your Firebase Web Config JSON here..."></textarea>
+            <div class="modal-actions">
+                <button id="save-settings-btn">Save & Connect</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-    
-    <!-- Main Application Logic -->
     <script src="run.js"></script>
 
 </body>

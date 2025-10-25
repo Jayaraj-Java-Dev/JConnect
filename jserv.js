@@ -433,7 +433,10 @@ class JServController {
     // Register only the management server in /servers
     await this.registerManageServer(port);
     console.log(`Management server registered with ID: ${this.SERVER_ID}`);
-    
+
+    await this.startHTTP(0, port);
+    console.log(`Started HTTP session 0 on port ${port} on this server`);
+      
     // Create HTTP server for the management UI
     const server = http.createServer(async (req, res) => {
       res.setHeader("Access-Control-Allow-Origin", "*");

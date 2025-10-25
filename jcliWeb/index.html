@@ -20,41 +20,43 @@
                 <div class="logo">J<span>C</span></div>
                 <h2>JConnect</h2>
             </div>
-            <div class="sidebar-section">
-                <h3 class="section-title">Live Servers</h3>
-                <ul id="server-list" class="live-list compact"></ul>
+            
+            <div id="sidebar-content">
+                <div class="sidebar-section">
+                    <h3 class="section-title">Live Servers</h3>
+                    <ul id="server-list" class="live-list compact"></ul>
+                </div>
+                <div class="sidebar-section">
+                    <h3 class="section-title">Active Sessions</h3>
+                    <ul id="session-list" class="live-list"></ul>
+                </div>
             </div>
-            <div class="sidebar-section">
-                <h3 class="section-title">Active Sessions</h3>
-                <ul id="session-list" class="live-list compact"></ul>
-            </div>
+
             <div class="sidebar-footer">
+                <button id="add-session-btn" class="icon-btn" title="Start New Session">
+                    <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"></path></svg>
+                </button>
                 <button id="settings-btn" class="icon-btn" title="Settings">
                     <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.25C8.66,5.49,8.12,5.82,7.63,6.2L5.24,5.24C5.02,5.15,4.77,5.22,4.65,5.44L2.73,8.76 c-0.12,0.2,0.03,0.47,0.21,0.61l2.03,1.58C4.94,11.36,4.92,11.68,4.92,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.24,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.44 c0.04,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.44c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0.01,0.59-0.22l1.92-3.32c0.12-0.2-0.03-0.47-0.21-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"></path></svg>
                 </button>
             </div>
         </div>
 
-        <!-- Main content area -->
         <div id="main-content">
             <div id="top-bar">
                 <button id="sidebar-toggle-btn" class="icon-btn" title="Toggle Sidebar"></button>
                 <div id="tab-bar"></div>
             </div>
             <div id="terminal-host"></div>
-            <div id="welcome-screen" hidden>
+            <div id="welcome-screen">
                 <div class="logo-large">J<span>C</span></div>
                 <h1>Welcome to JConnect Pro</h1>
                 <p>Select a session from the sidebar to begin your work.</p>
-                <div id="initial-loader" class="hidden">
-                    <p>Connecting to Firebase...</p>
-                </div>
             </div>
         </div>
     </div>
 
-    <!-- Settings Modal -->
-    <div id="modal-backdrop" class="hidden">
+    <div id="modal-backdrop">
         <div id="settings-modal" class="modal">
             <button class="modal-close-btn" title="Close">
                  <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
@@ -65,7 +67,27 @@
                 <button id="save-settings-btn" class="pro-button">Save & Connect</button>
             </div>
         </div>
+
+        <div id="new-session-modal" class="modal">
+            <button class="modal-close-btn" title="Close">
+                 <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+            </button>
+            <h3>Start New Session</h3>
+            <div class="form-group">
+                <label for="session-id-input">Session ID</label>
+                <input type="text" id="session-id-input" placeholder="e.g., my_dev_session">
+            </div>
+            <div class="form-group">
+                <label for="server-select">Server</label>
+                <select id="server-select"></select>
+            </div>
+            <div class="modal-actions">
+                <button id="start-session-btn" class="pro-button">Start Session</button>
+            </div>
+        </div>
     </div>
+
+    <div id="notification-container"></div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>

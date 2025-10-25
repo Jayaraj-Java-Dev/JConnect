@@ -1,12 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- State Management ---
     let state = {
-        firebaseConfig: null,
-        firebaseApp: null,
-        activeSessionIndex: null,
-        terminalInstances: {}, // { sessionIndex: term }
-        sessionsData: [], // Cache just the sessions data
-        isSidebarCollapsed: false,
+        firebaseConfig: null, firebaseApp: null, activeSessionIndex: null,
+        terminalInstances: {}, serverData: {}, sessionsData: [],
+        isSidebarCollapsed: false, isSettingsOpen: false,
     };
 
     // --- DOM Elements ---
@@ -15,70 +12,71 @@ document.addEventListener('DOMContentLoaded', () => {
     const serverListEl = document.getElementById('server-list');
     const sessionListEl = document.getElementById('session-list');
     const tabBarEl = document.getElementById('tab-bar');
-    // ... other elements
+    const terminalHostEl = document.getElementById('terminal-host');
+    const welcomeScreenEl = document.getElementById('welcome-screen');
+    const loaderEl = document.getElementById('initial-loader');
+    const modalBackdrop = document.getElementById('modal-backdrop');
 
-    // --- Local Storage ---
+    const ICONS = {
+        menu: '<svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"></path></svg>',
+        close: '<svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>'
+    };
+
+    // --- THE PROFESSIONAL FIX: Centralized Rendering ---
+    function render() {
+        // Render Sidebar
+        serverListEl.innerHTML = Object.values(state.serverData).map(server => `
+            <li>
+                <span class="status-dot ${server.status === 'online' ? 'online' : 'offline'}"></span>
+                <span class="item-name">${server.host}</span>
+                <span class="item-info">${server.ip}</span>
+            </li>`).join('') || '<li class="item-info" style="padding: 10px 20px;">No servers found.</li>';
+        
+        sessionListEl.innerHTML = state.sessionsData.map((session, index) => {
+            if (!session || !session.ssh) return '';
+            const { info } = session.ssh;
+            const statusClass = info.status === 'online' ? (Date.now() - info.lastHeartbeat < 15000 ? 'online' : 'stale') : 'offline';
+            return `<li class="clickable" data-index="${index}">
+                        <span class="status-dot ${statusClass}"></span>
+                        <span class="item-name">${info.server.username}@${info.server.hostname}</span>
+                        <span class="item-info">[${index}]</span>
+                    </li>`;
+        }).join('') || '<li class="item-info" style="padding: 10px 20px;">No sessions found.</li>';
+
+        // Render Tabs
+        tabBarEl.innerHTML = Object.keys(state.terminalInstances).map(sessionIndex => {
+            const session = state.sessionsData[sessionIndex];
+            if (!session) return '';
+            return `<div class="tab ${parseInt(sessionIndex) === state.activeSessionIndex ? 'active' : ''}" data-index="${sessionIndex}">
+                        <span class="tab-name">${session.ssh.info.server.username}@${session.ssh.info.server.hostname} [${sessionIndex}]</span>
+                        <button class="icon-btn tab-close-btn" data-index="${sessionIndex}">${ICONS.close}</button>
+                    </div>`;
+        }).join('');
+
+        // Render Modals & Main View
+        modalBackdrop.classList.toggle('hidden', !state.isSettingsOpen);
+        welcomeScreenEl.classList.toggle('hidden', state.activeSessionIndex !== null);
+    }
+    
+    // --- Local Storage & Firebase ---
     const AppStorage = {
         loadConfig: () => state.firebaseConfig = JSON.parse(localStorage.getItem('jconnect_firebaseConfig') || 'null'),
         saveConfig: () => localStorage.setItem('jconnect_firebaseConfig', JSON.stringify(state.firebaseConfig)),
     };
 
-    // --- UI Rendering (Now Decoupled) ---
-    function renderTabs() {
-        tabBarEl.innerHTML = '';
-        Object.keys(state.terminalInstances).forEach(sessionIndex => {
-            const session = state.sessionsData[sessionIndex];
-            if (!session) return;
-            const tab = document.createElement('div');
-            tab.className = 'tab';
-            tab.dataset.index = sessionIndex;
-            if (parseInt(sessionIndex) === state.activeSessionIndex) {
-                tab.classList.add('active');
-            }
-            tab.innerHTML = `
-                <span class="tab-name">${session.ssh.info.server.username}@${session.ssh.info.server.hostname} [${sessionIndex}]</span>
-                <button class="tab-close-btn" data-index="${sessionIndex}">×</button>
-            `;
-            tabBarEl.appendChild(tab);
-        });
-    }
-    
-    function renderServers(servers) {
-        serverListEl.innerHTML = !servers ? '<li class="item-info" style="padding: 10px 15px;">No manage servers found.</li>' : Object.values(servers).map(server => `
-            <li><span class="status-dot ${server.status === 'online' ? 'online' : 'offline'}"></span><div class="item-details"><span class="item-name">${server.host}</span><span class="item-info">${server.ip}</span></div></li>`).join('');
-    }
-
-    function renderSessions(sessions) {
-        state.sessionsData = sessions || []; // Cache the data
-        sessionListEl.innerHTML = !sessions ? '<li class="item-info" style="padding: 10px 15px;">No active sessions found.</li>' : sessions.map((session, index) => {
-            if (!session || !session.ssh) return '';
-            const { info } = session.ssh;
-            const timeSinceHeartbeat = Date.now() - info.lastHeartbeat;
-            const statusClass = info.status === 'online' ? (timeSinceHeartbeat < 15000 ? 'online' : 'stale') : 'offline';
-            return `<li class="clickable" data-index="${index}"><span class="status-dot ${statusClass}"></span><div class="item-details"><span class="item-name">${info.server.username}@${info.server.hostname}</span><span class="item-info">Session Index: ${index}</span></div></li>`;
-        }).join('');
-    }
-
-    // --- Firebase Logic (Now with Decoupled Listeners) ---
     function connectToFirebase() {
-        const loaderEl = document.getElementById('initial-loader');
-        if (!state.firebaseConfig) {
-            document.getElementById('modal-backdrop').classList.remove('hidden');
-            return;
-        }
+        if (!state.firebaseConfig) { state.isSettingsOpen = true; render(); return; }
         try {
             if (state.firebaseApp) state.firebaseApp.delete().then(() => state.firebaseApp = null);
             loaderEl.classList.remove('hidden');
             state.firebaseApp = firebase.initializeApp(state.firebaseConfig);
             const db = state.firebaseApp.database();
-
-            // *** THE CORE FIX: SEPARATE LISTENERS ***
-            db.ref('servers').on('value', (snapshot) => renderServers(snapshot.val()));
+            db.ref('servers').on('value', (snapshot) => { state.serverData = snapshot.val() || {}; render(); });
             db.ref('sessions').on('value', (snapshot) => {
                 loaderEl.classList.add('hidden');
-                renderSessions(snapshot.val());
+                state.sessionsData = snapshot.val() || [];
+                render();
             });
-
         } catch (e) {
             alert(`Firebase connection failed: ${e.message}`);
             loaderEl.classList.add('hidden');
@@ -89,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function toggleSidebar() {
         state.isSidebarCollapsed = !state.isSidebarCollapsed;
         appContainer.classList.toggle('sidebar-collapsed', state.isSidebarCollapsed);
-        sidebarToggleBtn.innerHTML = state.isSidebarCollapsed ? '☰' : '✕';
+        sidebarToggleBtn.innerHTML = state.isSidebarCollapsed ? ICONS.menu : ICONS.close;
         setTimeout(() => {
             const activeTerm = state.terminalInstances[state.activeSessionIndex];
             if (activeTerm) activeTerm.fitAddon.fit();
@@ -101,12 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById(`term-${state.activeSessionIndex}`).classList.remove('active');
         }
         state.activeSessionIndex = sessionIndex;
-        if (sessionIndex === null) {
-            document.getElementById('welcome-screen').classList.remove('hidden');
-            renderTabs();
-            return;
-        }
-        document.getElementById('welcome-screen').classList.add('hidden');
+        if (sessionIndex === null) { render(); return; }
 
         if (state.terminalInstances[sessionIndex]) {
             document.getElementById(`term-${sessionIndex}`).classList.add('active');
@@ -115,9 +108,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const termContainer = document.createElement('div');
             termContainer.id = `term-${sessionIndex}`;
             termContainer.className = 'terminal-instance active';
-            document.getElementById('terminal-host').appendChild(termContainer);
-
-            const term = new Terminal({ cursorBlink: true, fontSize: 14, padding: 10, theme: { background: '#1a1d24' } });
+            terminalHostEl.appendChild(termContainer);
+            const term = new Terminal({ cursorBlink: true, fontSize: 14, padding: 15, theme: { background: '#111827', foreground: '#F9FAFB', cursor: '#22d3ee', selection: 'rgba(34, 211, 238, 0.3)' } });
             const fitAddon = new FitAddon.FitAddon();
             term.loadAddon(fitAddon);
             term.open(termContainer);
@@ -140,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             term.onDispose(() => outputRef.off('child_added', outputListener));
         }
-        renderTabs();
+        render();
     }
     
     function closeSession(sessionIndex) {
@@ -154,26 +146,27 @@ document.addEventListener('DOMContentLoaded', () => {
             const remainingKeys = Object.keys(state.terminalInstances);
             setActiveSession(remainingKeys.length > 0 ? parseInt(remainingKeys[remainingKeys.length - 1]) : null);
         } else {
-            renderTabs();
+            render();
         }
     }
 
     // --- Event Handlers Setup ---
     function setupEventListeners() {
         sidebarToggleBtn.addEventListener('click', toggleSidebar);
-        const modalBackdrop = document.getElementById('modal-backdrop');
-        const closeModal = () => modalBackdrop.classList.add('hidden');
+        const closeModal = () => { state.isSettingsOpen = false; render(); };
         document.querySelector('.modal-close-btn').addEventListener('click', closeModal);
         modalBackdrop.addEventListener('click', (e) => { if (e.target === modalBackdrop) closeModal(); });
         document.getElementById('settings-btn').addEventListener('click', () => {
             document.getElementById('firebase-config').value = state.firebaseConfig ? JSON.stringify(state.firebaseConfig, null, 2) : '';
-            modalBackdrop.classList.remove('hidden');
+            state.isSettingsOpen = true;
+            render();
         });
         document.getElementById('save-settings-btn').addEventListener('click', () => {
             try {
                 state.firebaseConfig = JSON.parse(document.getElementById('firebase-config').value);
                 AppStorage.saveConfig();
-                closeModal();
+                state.isSettingsOpen = false;
+                render();
                 connectToFirebase();
             } catch (e) { alert('Invalid JSON in Firebase Config.'); }
         });
@@ -182,11 +175,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (li) setActiveSession(parseInt(li.dataset.index, 10));
         });
         tabBarEl.addEventListener('click', e => {
-            const target = e.target;
-            if (target.classList.contains('tab-close-btn')) {
-                closeSession(parseInt(target.dataset.index, 10));
+            const closeBtn = e.target.closest('.tab-close-btn');
+            if (closeBtn) {
+                closeSession(parseInt(closeBtn.dataset.index, 10));
             } else {
-                const tab = target.closest('.tab');
+                const tab = e.target.closest('.tab');
                 if (tab && parseInt(tab.dataset.index) !== state.activeSessionIndex) {
                     setActiveSession(parseInt(tab.dataset.index, 10));
                 }
@@ -196,10 +189,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- App Initialization ---
     function init() {
+        sidebarToggleBtn.innerHTML = ICONS.close;
         AppStorage.loadConfig();
         setupEventListeners();
         connectToFirebase();
-        setActiveSession(null);
+        render();
     }
     
     init();

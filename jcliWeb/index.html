@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web SSH Client over Firebase</title>
+    
+    <!-- Xterm.js Library & Fit Addon -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm/css/xterm.css" />
+    <script src="https://cdn.jsdelivr.net/npm/xterm/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit/lib/xterm-addon-fit.js"></script>
+
+    <!-- Main Styles -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- This div is the mount point for xterm.js -->
+    <div id="terminal"></div>
+
+    <div id="config-overlay">
+        <div id="config-modal">
+            <h2>Connect to Session</h2>
+            <p>Enter your Firebase configuration and Session ID to begin.</p>
+            <textarea id="firebase-config" placeholder="Paste your Firebase Web Config JSON here..."></textarea>
+            <input type="text" id="session-id" placeholder="Enter Session ID">
+            <button id="connect-btn">Connect</button>
+            <div id="error-message"></div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    
+    <!-- Main Application Logic -->
+    <script src="run.js"></script>
+
+</body>
+</html>

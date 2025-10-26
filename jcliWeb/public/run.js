@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Elements ---
     const appContainer = document.getElementById('app-container');
     const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
+    const sidebarOverlay = document.getElementById('sidebar-overlay');
     const serverListEl = document.getElementById('server-list');
     const sessionListEl = document.getElementById('session-list');
     const tabBarEl = document.getElementById('tab-bar');
@@ -29,6 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
         close: '<svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>',
         delete: '<svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"></path></svg>'
     };
+    const isMobile = () => window.innerWidth <= 768;
     const formatUptime = (seconds) => {
         if (typeof seconds !== 'number' || isNaN(seconds)) return 'N/A';
         if (seconds < 60) return `${Math.floor(seconds)}s`;
@@ -119,14 +121,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- UI Interaction & State Logic ---
-    function toggleSidebar() {
-        state.isSidebarCollapsed = !state.isSidebarCollapsed;
+    function setSidebarCollapsed(collapsed) {
+        state.isSidebarCollapsed = collapsed;
         appContainer.classList.toggle('sidebar-collapsed', state.isSidebarCollapsed);
         sidebarToggleBtn.innerHTML = state.isSidebarCollapsed ? ICONS.menu : ICONS.close;
-        setTimeout(() => handleWindowResize(), 300);
+        // After the sidebar animation completes, resize the active terminal.
+        setTimeout(() => resizeActiveTerminal(), 300);
     }
     
     function setActiveSession(sessionKey) {
+        if (isMobile()) {
+            setSidebarCollapsed(true); // Always collapse sidebar on mobile when a session is activated
+        }
         if (state.activeSessionKey === sessionKey && sessionKey !== null) return;
         if (state.activeSessionKey && state.terminalInstances[state.activeSessionKey]) { document.getElementById(`term-${state.activeSessionKey}`).classList.remove('active'); }
         state.activeSessionKey = sessionKey;
@@ -169,7 +175,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } else { render(); }
     }
 
-    // NEW: Delete Session Business Logic
     function deleteSession(sessionId) {
         const session = state.sessionsData[sessionId];
         if (!session || !session.ssh || !session.ssh.info) {
@@ -214,7 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    function handleWindowResize() {
+    function resizeActiveTerminal() {
         if (state.activeSessionKey) {
             const activeInstance = state.terminalInstances[state.activeSessionKey];
             if (activeInstance && activeInstance.term.fitAddon) {
@@ -251,7 +256,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function setupEventListeners() {
-        sidebarToggleBtn.addEventListener('click', toggleSidebar);
+        sidebarToggleBtn.addEventListener('click', () => setSidebarCollapsed(!state.isSidebarCollapsed));
+        sidebarOverlay.addEventListener('click', () => setSidebarCollapsed(true));
         
         const closeModal = () => {
             state.isSettingsOpen = false;
@@ -333,17 +339,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function init() {
-        sidebarToggleBtn.innerHTML = ICONS.close;
         AppStorage.loadConfig();
         setupEventListeners();
         connectToFirebase();
+        
+        // Initial sidebar state based on screen size
+        setSidebarCollapsed(isMobile());
+
         render();
         let resizeTimeout;
-        window.addEventListener('resize', () => { clearTimeout(resizeTimeout); resizeTimeout = setTimeout(handleWindowResize, 100); });
+        window.addEventListener('resize', () => { 
+            clearTimeout(resizeTimeout); 
+            resizeTimeout = setTimeout(resizeActiveTerminal, 100); 
+        });
     }
     
     init();
 });
+
+// ... (The rest of the file remains unchanged)
 
 function uniqueId() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);

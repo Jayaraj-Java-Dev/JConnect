@@ -24,7 +24,7 @@ html, body {
     overflow: hidden;
 }
 
-#app-container { display: flex; height: 100vh; }
+#app-container { display: flex; height: 100vh; position: relative; }
 
 /* --- Sidebar --- */
 #sidebar {
@@ -34,8 +34,23 @@ html, body {
     display: flex; flex-direction: column;
     flex-shrink: 0;
     transition: margin-left var(--transition-speed);
+    position: relative;
+    z-index: 100;
 }
 #app-container.sidebar-collapsed #sidebar { margin-left: calc(-1 * var(--sidebar-width)); }
+#sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 99;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--transition-speed);
+}
 .sidebar-header {
     display: flex; align-items: center; gap: 12px;
     padding: 20px;
@@ -101,7 +116,7 @@ html, body {
     border-bottom: 1px solid var(--border-color);
     flex-shrink: 0;
 }
-#sidebar-toggle-btn { padding: 10px; border-right: 1px solid var(--border-color); }
+#sidebar-toggle-btn { padding: 10px; border-right: 1px solid var(--border-color); z-index: 101; }
 #tab-bar {
     display: flex;
     flex-grow: 1;
@@ -193,7 +208,7 @@ html, body {
 #terminal-host { flex-grow: 1; position: relative; }
 .terminal-instance { position: absolute; top: 0; left: 0; width: 100%; height: 100%; visibility: hidden; }
 .terminal-instance.active { visibility: visible; }
-#welcome-screen { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; text-align: center; }
+#welcome-screen { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; text-align: center; padding: 20px; box-sizing: border-box; }
 #welcome-screen.hidden { display: none; }
 .logo-large { font-size: 64px; font-weight: 800; margin-bottom: 20px; }
 .logo-large span { color: var(--accent-cyan); }
@@ -235,7 +250,7 @@ html, body {
     background-color: var(--accent-red);
 }
 
-/* --- NEW: Session Delete Button --- */
+/* --- Session Delete Button --- */
 .session-delete-btn {
     position: absolute;
     top: 50%;
@@ -251,4 +266,54 @@ html, body {
 }
 .session-delete-btn:hover {
     color: var(--accent-red); /* Changes color on hover */
+}
+
+/* --- Mobile Responsiveness --- */
+@media (max-width: 768px) {
+    :root {
+        --sidebar-width: 280px;
+    }
+
+    #sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        transform: translateX(calc(-1 * var(--sidebar-width)));
+        transition: transform var(--transition-speed);
+        box-shadow: 0 0 40px rgba(0,0,0,0.5);
+    }
+    
+    #app-container.sidebar-collapsed #sidebar {
+        transform: translateX(calc(-1 * var(--sidebar-width)));
+    }
+
+    #app-container:not(.sidebar-collapsed) #sidebar {
+        transform: translateX(0);
+    }
+
+    /* Show the overlay when the sidebar is open on mobile */
+    #app-container:not(.sidebar-collapsed) #sidebar-overlay {
+        display: block;
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    /* Override the margin-based hiding for mobile */
+    #app-container.sidebar-collapsed #sidebar {
+        margin-left: 0;
+    }
+
+    .logo-large { font-size: 48px; }
+    #welcome-screen h1 { font-size: 24px; }
+    #welcome-screen p { font-size: 16px; }
+
+    .tab { max-width: 150px; }
+    .tab-name { font-size: 13px; }
+
+    #notification-container {
+        right: 10px;
+        bottom: 10px;
+        width: calc(100% - 20px);
+    }
 }
